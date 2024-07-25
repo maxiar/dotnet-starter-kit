@@ -108,6 +108,10 @@ Generate certificates for identity server
 {{- printf "%s-%s" .Release.Name .Values.services.sqlserver.name | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{- define "maxiar-databaseinstance.postgres.name" -}}
+{{- printf "%s-%s" .Release.Name .Values.services.postgres.name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
 {{- define "maxiar-elastic.url" -}}
 {{- printf "http://%s-%s:%s" .Release.Name .Values.services.elastic.name .Values.services.elastic.port | trunc 63 | trimSuffix "-" }}
 {{- end }}
