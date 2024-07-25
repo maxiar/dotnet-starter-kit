@@ -75,7 +75,7 @@ spec:
               name: {{ include "maxiar-dotnetstarterkit-webapi.fullname" . }}
           startupProbe:
             httpGet:
-              path: /api/healthcheck
+              path: /health
               port: 80
             failureThreshold: {{ .Values.startupProbe.failureThreshold }}
             periodSeconds: {{ .Values.startupProbe.periodSeconds }}
@@ -83,7 +83,7 @@ spec:
             timeoutSeconds: {{ .Values.startupProbe.timeoutSeconds }}
           readinessProbe:
             httpGet:
-              path: /api/healthcheck
+              path: /health
               port: 80
             initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
