@@ -157,8 +157,8 @@ configmaps:
           max: 2000
     postgres:
       credentials:
-        userName: dummy
-        password: dummy
+        userName: dummy33
+        password: dummy33
   hostBuilder:
     reloadConfigOnChange: "false"
   logging:
