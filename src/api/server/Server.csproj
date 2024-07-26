@@ -6,7 +6,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <ContainerRepository>webapi</ContainerRepository>
-    <ContainerImageTags>2.0.1;latest</ContainerImageTags>
+    <ContainerImageTags>2.0.2;latest</ContainerImageTags>
     <PublishProfile>DefaultContainer</PublishProfile>
   </PropertyGroup>
   <ItemGroup>
@@ -32,6 +32,11 @@
     </Content>
     <None Update="assets\defaults\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="assets\**\*">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 </Project>
