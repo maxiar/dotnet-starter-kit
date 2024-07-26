@@ -6,7 +6,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <ContainerRepository>webapi</ContainerRepository>
-    <ContainerImageTags>2.0.2;latest</ContainerImageTags>
+    <ContainerImageTags>2.0.3;latest</ContainerImageTags>
     <PublishProfile>DefaultContainer</PublishProfile>
   </PropertyGroup>
   <ItemGroup>
