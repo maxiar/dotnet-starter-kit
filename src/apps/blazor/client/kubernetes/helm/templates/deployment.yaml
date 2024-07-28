@@ -28,6 +28,7 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          command: ["/bin/sh",  "-c", "envsubst < $${Frontend_FSHStarterBlazorClient_Settings__AppSettingsTemplate} > $${Frontend_FSHStarterBlazorClient_Settings__AppSettingsJson} && find /usr/share/nginx/html -type f | xargs chmod +r && exec nginx -g 'daemon off;'"]
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
