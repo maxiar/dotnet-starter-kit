@@ -7,3 +7,6 @@ FROM nginx:alpine
 WORKDIR /usr/share/nginx/html
 COPY --from=build-env /app/output/wwwroot .
 COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 7100
+EXPOSE 5100
