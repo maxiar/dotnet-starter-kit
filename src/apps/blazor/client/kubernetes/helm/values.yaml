@@ -94,6 +94,7 @@ affinity: {}
 configmaps:
   frontend:
     domainName: "dummy2.domain"
+    ingressDomainName: "dummy3.ingress"
     subdomainName: "blazor"
     domainNameCharSeparator: "."
     proyi18n: ""
