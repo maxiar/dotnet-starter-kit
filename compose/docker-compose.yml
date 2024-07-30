@@ -40,19 +40,43 @@ services:
         condition: service_healthy
     restart: on-failure
 
+#  blazor:
+#    image: ghcr.io/fullstackhero/blazor:latest
+#    pull_policy: always
+#    container_name: blazor
+#    environment:
+#      ASPNETCORE_ENVIRONMENT: docker
+#      ASPNETCORE_Kestrel__Certificates__Default__Password: password!
+#      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/cert.pfx
+#      ASPNETCORE_URLS: https://+:7100;http://+:5010
+#      ASPNETCORE_HTTPS_PORT: 7100
+#      ApiBaseUrl: http://webapi:7000
+#    networks:
+#      - fullstackhero
+#    volumes:
+#      - ~/.aspnet/https:/https:ro
+#    ports:
+#      - 7100:7100
+#      - 5100:5100
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+#    restart: on-failure
+
   blazor:
-    image: ghcr.io/fullstackhero/blazor:latest
+    image: ghcr.io/maxiar/blazor:latest
     pull_policy: always
     container_name: blazor
     environment:
-      ASPNETCORE_ENVIRONMENT: docker
-      ASPNETCORE_URLS: https://+:443;http://+:80
-      ASPNETCORE_HTTPS_PORT: 443
-      ASPNETCORE_Kestrel__Certificates__Default__Password: password!
-      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/cert.pfx
+#      ASPNETCORE_ENVIRONMENT: docker
+#      ASPNETCORE_URLS: https://+:7100;http://+:5010
+#      ASPNETCORE_HTTPS_PORT: 7100
+#      ASPNETCORE_Kestrel__Certificates__Default__Password: password!
+#      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/cert.pfx
       Frontend_FSHStarterBlazorClient_Settings__AppSettingsTemplate: /usr/share/nginx/html/appsettings.json.TEMPLATE
       Frontend_FSHStarterBlazorClient_Settings__AppSettingsJson: /usr/share/nginx/html/appsettings.json
-      FSHStarterBlazorClient_ApiBaseUrl: https://dotnetstarterkitwebapi{{ tpl .Values.configmaps.frontend.domainNameCharSeparator . }}{{ tpl .Values.configmaps.frontend.domainName . }}
+      FSHStarterBlazorClient_ApiBaseUrl: https://localhost:7000
+      ApiBaseUrl: https://localhost:7000
     networks:
       - fullstackhero
     entrypoint:
@@ -68,8 +92,7 @@ services:
     volumes:
       - ~/.aspnet/https:/https:ro
     ports:
-      - 7100:443
-      - 5100:80
+      - 7100:80
     depends_on:
       postgres:
         condition: service_healthy

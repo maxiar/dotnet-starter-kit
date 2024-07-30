@@ -159,6 +159,9 @@ configmaps:
       credentials:
         userName: dummy
         password: dummy
+  corsOptions:
+    allowedOrigins_4: https://dummy
+
   hostBuilder:
     reloadConfigOnChange: "false"
   logging:

@@ -1,9 +1,9 @@
 {{/* _config_map.tpl */}}
 {{- define "maxiar-dotnetstarterkit-webapi.config-map-contents" -}}
 DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: {{ .Values.configmaps.hostBuilder.reloadConfigOnChange | quote }}
-ASPNETCORE_ENVIRONMENT: "Development" #To enabled the /health endpoint for k8s
-ASPNETCORE_URLS: http://*:80
-ASPNETCORE_HTTPS_PORT: "80"
+#ASPNETCORE_ENVIRONMENT: "Development" #To enabled the /health endpoint for k8s
+#ASPNETCORE_URLS: http://*:80
+#ASPNETCORE_HTTPS_PORT: "80"
 #ASPNETCORE_Kestrel__Certificates__Default__Password: password!
 #ASPNETCORE_Kestrel__Certificates__Default__Path: /https/cert.pfx
 Host__Health__CheckTime: "30"
@@ -22,6 +22,7 @@ MailOptions__DisplayName: Mukesh Murugan
 CorsOptions__AllowedOrigins__0: http://localhost:5010
 CorsOptions__AllowedOrigins__1: http://localhost:7100
 CorsOptions__AllowedOrigins__2: https://localhost:7020
+CorsOptions__AllowedOrigins__4: {{ .Values.configmaps.corsOptions.allowedOrigins_4 }}
 OpenTelemetryOptions__Endpoint: http://otel-collector:4317
 RateLimitOptions__EnableRateLimiting: "false"
 {{- end -}}
