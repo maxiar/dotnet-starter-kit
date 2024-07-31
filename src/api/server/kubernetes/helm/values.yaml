@@ -160,7 +160,8 @@ configmaps:
         userName: dummy
         password: dummy
   corsOptions:
-    allowedOrigins_4: https://dummy
+    allowedOrigins_2: https://dummy2
+    allowedOrigins_3: https://dummy3
 
   hostBuilder:
     reloadConfigOnChange: "false"

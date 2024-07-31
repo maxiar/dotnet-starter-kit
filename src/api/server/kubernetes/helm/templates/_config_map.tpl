@@ -21,8 +21,8 @@ MailOptions__Password: KbuTCFv4J6Fy7256vh
 MailOptions__DisplayName: Mukesh Murugan
 CorsOptions__AllowedOrigins__0: http://localhost:5010
 CorsOptions__AllowedOrigins__1: http://localhost:7100
-CorsOptions__AllowedOrigins__2: https://localhost:7020
-CorsOptions__AllowedOrigins__4: {{ .Values.configmaps.corsOptions.allowedOrigins_4 }}
+CorsOptions__AllowedOrigins__2: {{ .Values.configmaps.corsOptions.allowedOrigins_2 }}
+CorsOptions__AllowedOrigins__3: {{ .Values.configmaps.corsOptions.allowedOrigins_3 }}
 OpenTelemetryOptions__Endpoint: http://otel-collector:4317
 RateLimitOptions__EnableRateLimiting: "false"
 {{- end -}}
