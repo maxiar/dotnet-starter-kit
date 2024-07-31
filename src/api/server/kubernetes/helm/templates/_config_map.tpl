@@ -4,8 +4,8 @@ DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: {{ .Values.configmaps.hostBuilder.relo
 ASPNETCORE_ENVIRONMENT: "Development" #To enabled the /health endpoint for k8s
 ASPNETCORE_URLS: http://*:80
 ASPNETCORE_HTTPS_PORT: "80"
-ASPNETCORE_Kestrel__Certificates__Default__Password: password!
-ASPNETCORE_Kestrel__Certificates__Default__Path: /https/cert.pfx
+#ASPNETCORE_Kestrel__Certificates__Default__Password: password!
+#ASPNETCORE_Kestrel__Certificates__Default__Path: /https/cert.pfx
 Host__Health__CheckTime: "30"
 Host__Health__UnregisterTime: "90"
 DatabaseOptions__ConnectionString: Server={{ include "maxiar-databaseinstance.postgres.name" . }};Port=5432;Database=fullstackhero;User Id={{ .Values.configmaps.database.postgres.credentials.userName }};Password={{ .Values.configmaps.database.postgres.credentials.password }};
