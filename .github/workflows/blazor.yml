@@ -1,6 +1,8 @@
 name: blazor
 
 on:
+  workflow_dispatch:
+
   push:
     branches: ["open_telemetric_and_docker_fixes"]
     paths: ["src/apps/blazor/**"]
