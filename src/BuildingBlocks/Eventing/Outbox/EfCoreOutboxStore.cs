@@ -1,4 +1,5 @@
 using FSH.Framework.Eventing.Abstractions;
+using FSH.Framework.Eventing.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -6,22 +7,24 @@ using Microsoft.Extensions.Options;
 namespace FSH.Framework.Eventing.Outbox;
 
 /// <summary>
-/// EF Core-based outbox store for a specific DbContext.
+/// EF Core outbox store over the framework-owned <see cref="EventingDbContext"/>.
+///
+/// Non-generic on purpose: a per-DbContext generic store meant one
+/// <c>IOutboxStore</c> registration per module, and .NET DI resolved the last
+/// one registered for the entire application (issue #1349).
 /// </summary>
-/// <typeparam name="TDbContext">The DbContext that owns the OutboxMessages set.</typeparam>
-public sealed class EfCoreOutboxStore<TDbContext> : IOutboxStore
-    where TDbContext : DbContext
+public sealed class EfCoreOutboxStore : IOutboxStore
 {
-    private readonly TDbContext _dbContext;
+    private readonly EventingDbContext _dbContext;
     private readonly IEventSerializer _serializer;
-    private readonly ILogger<EfCoreOutboxStore<TDbContext>> _logger;
+    private readonly ILogger<EfCoreOutboxStore> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly EventingOptions _options;
 
     public EfCoreOutboxStore(
-        TDbContext dbContext,
+        EventingDbContext dbContext,
         IEventSerializer serializer,
-        ILogger<EfCoreOutboxStore<TDbContext>> logger,
+        ILogger<EfCoreOutboxStore> logger,
         TimeProvider timeProvider,
         IOptions<EventingOptions> options)
     {

@@ -64,7 +64,7 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddScoped<IOutboxStore, EfCoreOutboxStore<TDbContext>>();
+        services.AddScoped<IOutboxStore, EfCoreOutboxStore>();
         services.AddScoped<IInboxStore, EfCoreInboxStore<TDbContext>>();
         services.AddScoped<OutboxDispatcher>();
 
