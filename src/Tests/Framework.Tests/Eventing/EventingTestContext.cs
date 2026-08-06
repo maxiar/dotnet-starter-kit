@@ -41,8 +41,46 @@ internal static class EventingTestContext
         var environment = Substitute.For<IHostEnvironment>();
         environment.EnvironmentName.Returns("Production");
 
-        var context = new EventingDbContext(accessor, options, settings, environment);
+        // UseSqlite(DbConnection) does NOT transfer ownership of an externally-supplied
+        // connection to EF Core — disposing the DbContext alone would leak the native SQLite
+        // handle. SqliteOwnedEventingDbContext takes ownership explicitly and disposes the
+        // connection alongside itself, so a plain `await using` at the call site is enough.
+        var context = new SqliteOwnedEventingDbContext(accessor, options, settings, environment, connection);
         context.Database.EnsureCreated();
         return context;
+    }
+
+    /// <summary>
+    /// An <see cref="EventingDbContext"/> that owns the <see cref="SqliteConnection"/> backing
+    /// it, so disposing the context also closes and disposes the connection. Needed only because
+    /// EF Core's <c>UseSqlite(DbConnection)</c> overload treats an externally-supplied connection
+    /// as caller-owned.
+    /// </summary>
+    private sealed class SqliteOwnedEventingDbContext : EventingDbContext
+    {
+        private readonly SqliteConnection _connection;
+
+        public SqliteOwnedEventingDbContext(
+            IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor,
+            DbContextOptions<EventingDbContext> options,
+            IOptions<DatabaseOptions> settings,
+            IHostEnvironment environment,
+            SqliteConnection connection)
+            : base(multiTenantContextAccessor, options, settings, environment)
+        {
+            _connection = connection;
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            _connection.Dispose();
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            await base.DisposeAsync().ConfigureAwait(false);
+            await _connection.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }
