@@ -15,9 +15,9 @@ namespace Architecture.Tests;
 /// </summary>
 public class EventingRegistrationTests
 {
-    private static IServiceCollection BuildServices()
+    private static IConfiguration BuildConfiguration()
     {
-        IConfiguration configuration = new ConfigurationBuilder()
+        return new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["DatabaseOptions:Provider"] = "postgresql",
@@ -25,9 +25,12 @@ public class EventingRegistrationTests
                 ["DatabaseOptions:MigrationsAssembly"] = "FSH.Starter.Migrations.PostgreSQL",
             })
             .Build();
+    }
 
+    private static IServiceCollection BuildServices()
+    {
         IServiceCollection services = new ServiceCollection();
-        services.AddEventingCore(configuration);
+        services.AddEventingCore(BuildConfiguration());
         return services;
     }
 
@@ -50,21 +53,15 @@ public class EventingRegistrationTests
     [Fact]
     public void AddEventingCore_Is_Idempotent()
     {
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["DatabaseOptions:Provider"] = "postgresql",
-                ["DatabaseOptions:ConnectionString"] = "Host=arch;Database=arch;Username=arch;Password=arch",
-                ["DatabaseOptions:MigrationsAssembly"] = "FSH.Starter.Migrations.PostgreSQL",
-            })
-            .Build();
-
+        IConfiguration configuration = BuildConfiguration();
         IServiceCollection services = new ServiceCollection();
         services.AddEventingCore(configuration);
         services.AddEventingCore(configuration);
 
-        services.Count(d => d.ServiceType == typeof(IOutboxStore)).ShouldBe(1);
-        services.Count(d => d.ServiceType == typeof(IInboxStore)).ShouldBe(1);
+        services.Count(d => d.ServiceType == typeof(IOutboxStore))
+            .ShouldBe(1, "calling AddEventingCore twice must not multiply the IOutboxStore registration — that would reintroduce the exact ambiguity issue #1349 is about");
+        services.Count(d => d.ServiceType == typeof(IInboxStore))
+            .ShouldBe(1, "calling AddEventingCore twice must not multiply the IInboxStore registration — that would reintroduce the exact ambiguity issue #1349 is about");
     }
 
     [Fact]
