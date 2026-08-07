@@ -114,7 +114,6 @@ public class IdentityModule : IModule
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddHeroDbContext<IdentityDbContext>();
         services.AddEventingCore(builder.Configuration);
-        services.AddEventingForDbContext<IdentityDbContext>();
         services.AddIntegrationEventHandlers(typeof(IdentityModule).Assembly);
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<IdentityDbContext>(
