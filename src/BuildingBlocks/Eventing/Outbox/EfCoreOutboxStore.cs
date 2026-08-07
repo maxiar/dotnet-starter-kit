@@ -1,6 +1,8 @@
 using FSH.Framework.Eventing.Abstractions;
 using FSH.Framework.Eventing.Persistence;
+using FSH.Framework.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -20,13 +22,15 @@ public sealed partial class EfCoreOutboxStore : IOutboxStore
     private readonly ILogger<EfCoreOutboxStore> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly EventingOptions _options;
+    private readonly AmbientDbTransactionRegistry _ambientTransactions;
 
     public EfCoreOutboxStore(
         EventingDbContext dbContext,
         IEventSerializer serializer,
         ILogger<EfCoreOutboxStore> logger,
         TimeProvider timeProvider,
-        IOptions<EventingOptions> options)
+        IOptions<EventingOptions> options,
+        AmbientDbTransactionRegistry ambientTransactions)
     {
         ArgumentNullException.ThrowIfNull(options);
         _dbContext = dbContext;
@@ -34,11 +38,14 @@ public sealed partial class EfCoreOutboxStore : IOutboxStore
         _logger = logger;
         _timeProvider = timeProvider;
         _options = options.Value;
+        _ambientTransactions = ambientTransactions;
     }
 
     public async Task AddAsync(IIntegrationEvent @event, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(@event);
+
+        await EnlistInAmbientTransactionAsync(ct).ConfigureAwait(false);
 
         var payload = _serializer.Serialize(@event);
         var message = new OutboxMessage
@@ -175,6 +182,40 @@ public sealed partial class EfCoreOutboxStore : IOutboxStore
         }
 
         return dead.Count;
+    }
+
+    /// <summary>
+    /// Joins the caller's transaction when there is one, so the outbox row commits or rolls back
+    /// with the business data it accompanies. Without this the row is its own transaction and a
+    /// crash between the two writes either loses the event or publishes one for work that was
+    /// rolled back.
+    ///
+    /// Only possible because every context in the scope shares one DbConnection
+    /// (<see cref="IScopedDbConnectionProvider"/>) — EF Core cannot enlist a context in a
+    /// transaction opened on a different connection. With no ambient transaction this is a no-op
+    /// and the write behaves exactly as before.
+    /// </summary>
+    private async Task EnlistInAmbientTransactionAsync(CancellationToken ct)
+    {
+        var ambient = _ambientTransactions.Find(_dbContext.Database.GetDbConnection());
+        var current = _dbContext.Database.CurrentTransaction;
+
+        if (ambient is null)
+        {
+            // The transaction we previously joined has since completed; drop the stale handle so
+            // this write opens its own transaction instead of failing on a disposed one.
+            if (current is not null)
+            {
+                await _dbContext.Database.UseTransactionAsync(null, ct).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        if (!ReferenceEquals(current?.GetDbTransaction(), ambient))
+        {
+            await _dbContext.Database.UseTransactionAsync(ambient, ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
