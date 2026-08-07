@@ -35,6 +35,43 @@ Each phase is independently shippable and leaves the build green.
 | 5 | Move the 8 direct `IEventBus.PublishAsync` call sites onto the outbox | The `eventing.md` promise that is currently false |
 | 6 | Rules, skills, docs repo, changelog | Golden rule #10 |
 
+## Progress
+
+| Task | State | Commit |
+|---|---|---|
+| 1.1 arch guard test | done (now green) | `375a8e58`, `f06b466f` |
+| 1.2 `EventingDbContext` | done | `0d95730f` |
+| 1.3 non-generic `EfCoreOutboxStore` | done | `aaca3d2b`, `795e0f32`, `d64aef9b` |
+| 1.4 non-generic `EfCoreInboxStore` | done | `72fa0b13` |
+| 1.5 collapse into `AddEventingCore` | done | `72fa0b13` |
+| 1.6 strip Identity + host wiring | **next** | — |
+| 1.7 migrations + data carry-over | todo | — |
+| 1.8 multi-module integration test | todo | — |
+| Phases 2–6 | todo | — |
+
+Rebased onto `origin/main` 2026-08-07, after PR #1336 (outbox retry backoff +
+dead-letter redrive) landed upstream. Consequences for the remaining tasks:
+
+- `EfCoreOutboxStore`'s ctor also takes `IOptions<EventingOptions>`, and
+  `OutboxMessage` has a `NextRetryAt` column — the task 1.7 `framework`-schema
+  migration must include it, and the data carry-over `INSERT` must list it.
+- `Integration.Tests/Tests/Eventing/OutboxRetryTests.cs` reaches into
+  `IdentityDbContext` for the outbox tables; it has to move to `EventingDbContext`
+  as part of task 1.6.
+
+Tasks 1.4 and 1.5 shipped as one commit: dropping the inbox store's type
+parameter leaves `AddEventingForDbContext<TDbContext>` with an unused one, which
+`TreatWarningsAsErrors` rejects (S2326).
+
+Two deviations from the text below, both deliberate:
+
+- The initializer is registered with `TryAddEnumerable(ServiceDescriptor.Scoped<IDbInitializer, EventingDbInitializer>())`,
+  **not** `TryAddScoped<IDbInitializer, EventingDbInitializer>()` as written in task 1.5.
+  Modules already register their own `IDbInitializer`, and `TryAdd` matches on service
+  type alone — the eventing initializer would have been silently dropped.
+- `EventingDbInitializer` is `public`, not `internal`: CA1812 fails the build for an
+  internal DI-only type.
+
 ---
 
 # Phase 1 — Framework-owned EventingDbContext
