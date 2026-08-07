@@ -40,7 +40,7 @@ public sealed class OutboxRetryTests
             DateTime.UtcNow.AddSeconds(20),
             "the first retry backs off by the base delay (30s), not the next 10s cycle");
 
-        var pending = await store.GetPendingBatchAsync(500);
+        var pending = await ClaimAsync(store);
         pending.ShouldNotContain(
             m => m.Id == message.Id,
             "a message whose NextRetryAt is in the future must be excluded from the dispatch batch");
@@ -64,10 +64,13 @@ public sealed class OutboxRetryTests
 
         redriven.ShouldBe(1);
         (await store.GetDeadLetteredAsync(500)).ShouldNotContain(m => m.Id == message.Id);
-        (await store.GetPendingBatchAsync(500)).ShouldContain(
+        (await ClaimAsync(store)).ShouldContain(
             m => m.Id == message.Id,
             "a redriven message clears IsDead/RetryCount/NextRetryAt and becomes eligible again");
     }
+
+    private static Task<IReadOnlyList<OutboxMessage>> ClaimAsync(IOutboxStore store) =>
+        store.ClaimBatchAsync(500, "OutboxRetryTests", TimeSpan.FromMinutes(5));
 
     private static OutboxMessage NewMessage() => new()
     {

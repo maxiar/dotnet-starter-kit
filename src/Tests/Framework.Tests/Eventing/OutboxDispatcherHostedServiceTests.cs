@@ -26,7 +26,7 @@ public class OutboxDispatcherHostedServiceTests
         await RunOneCycleAsync(targets, recording, store);
 
         recording.Begun.ShouldBe(targets, "every database holding outbox rows must be drained each cycle");
-        await store.Received(2).GetPendingBatchAsync(Arg.Any<int>(), Arg.Any<CancellationToken>());
+        await store.Received(2).ClaimBatchAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class OutboxDispatcherHostedServiceTests
         await RunOneCycleAsync([Default], recording, store);
 
         recording.Begun.ShouldHaveSingleItem();
-        await store.Received(1).GetPendingBatchAsync(Arg.Any<int>(), Arg.Any<CancellationToken>());
+        await store.Received(1).ClaimBatchAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class OutboxDispatcherHostedServiceTests
     {
         var recording = new RecordingDrainScope();
         var store = Substitute.For<IOutboxStore>();
-        store.GetPendingBatchAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+        store.ClaimBatchAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns(
                 _ => throw new InvalidOperationException("acme is down"),
                 _ => Task.FromResult<IReadOnlyList<OutboxMessage>>([]));
@@ -62,7 +62,7 @@ public class OutboxDispatcherHostedServiceTests
     private static IOutboxStore EmptyStore()
     {
         var store = Substitute.For<IOutboxStore>();
-        store.GetPendingBatchAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+        store.ClaimBatchAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<OutboxMessage>>([]));
         return store;
     }
