@@ -44,10 +44,23 @@ Each phase is independently shippable and leaves the build green.
 | 1.3 non-generic `EfCoreOutboxStore` | done | `aaca3d2b`, `795e0f32`, `d64aef9b` |
 | 1.4 non-generic `EfCoreInboxStore` | done | `72fa0b13` |
 | 1.5 collapse into `AddEventingCore` | done | `72fa0b13` |
-| 1.6 strip Identity + host wiring | **next** | — |
-| 1.7 migrations + data carry-over | todo | — |
-| 1.8 multi-module integration test | todo | — |
+| 1.6 strip Identity + host wiring | done | `161b364c` |
+| 1.7 migrations + data carry-over | done | `161b364c` |
+| 1.8 multi-module integration test | done | `161b364c` |
+| **Phase 1 complete** — #1349 fixed end to end | | |
 | Phases 2–6 | todo | — |
+
+Phase 1 exit criteria met 2026-08-07: build 0 warnings, 1040 unit tests green,
+737 integration tests green (1 pre-existing skip). Phase 6's `eventing.md` update
+was pulled forward — the rule file documented `AddEventingForDbContext<T>` as
+required module wiring, which no longer exists. Still outstanding for Phase 6:
+the docs repo page and a changelog entry.
+
+Ordering note for anyone touching host wiring: `AddEventingCore` must be called
+**before** `AddModules` in both hosts. `IDbInitializer` runs in registration
+order, and `DropIdentityOutbox` copies rows into `framework.*` — if the eventing
+initializer ran second, the copy would silently no-op and pending events would be
+dropped on upgrade.
 
 Rebased onto `origin/main` 2026-08-07, after PR #1336 (outbox retry backoff +
 dead-letter redrive) landed upstream. Consequences for the remaining tasks:
