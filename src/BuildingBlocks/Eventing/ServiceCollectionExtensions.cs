@@ -33,6 +33,11 @@ public static class ServiceCollectionExtensions
         // so background publishers establish the tenant before tenant-filtered handler DbContexts build.
         services.TryAddSingleton<IEventTenantScope, NullEventTenantScope>();
 
+        // Which databases the dispatcher drains. Defaults to the configured connection only;
+        // the multitenancy module replaces both so per-tenant databases are drained too.
+        services.TryAddSingleton<IEventingDrainTargetProvider, SingleDatabaseDrainTargetProvider>();
+        services.TryAddSingleton<IEventingDrainScope, NullEventingDrainScope>();
+
         // Register event bus based on configured provider
         var options = configuration.GetSection(nameof(EventingOptions)).Get<EventingOptions>() ?? new EventingOptions();
 
@@ -60,6 +65,10 @@ public static class ServiceCollectionExtensions
         services.AddHeroDbContext<EventingDbContext>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IDbInitializer, EventingDbInitializer>());
         services.TryAddScoped<IOutboxStore, EfCoreOutboxStore>();
+
+        // Modules inject the publish-side contract from Eventing.Abstractions and stay off the
+        // eventing runtime; it is the same instance as the store.
+        services.TryAddScoped<IOutboxWriter>(sp => sp.GetRequiredService<IOutboxStore>());
         services.TryAddScoped<IInboxStore, EfCoreInboxStore>();
         services.TryAddScoped<OutboxDispatcher>();
 

@@ -47,8 +47,29 @@ Each phase is independently shippable and leaves the build green.
 | 1.6 strip Identity + host wiring | done | `161b364c` |
 | 1.7 migrations + data carry-over | done | `161b364c` |
 | 1.8 multi-module integration test | done | `161b364c` |
-| **Phase 1 complete** — #1349 fixed end to end | | |
-| Phases 2–6 | todo | — |
+| **Phase 1 complete** — #1349 fixed end to end | shipped | PR #1353 |
+| 2.1 drain-target abstractions | done | |
+| 2.2 dispatch every target | done | |
+| 2.3 multitenancy provider + scope | done | |
+| 3.1 lease columns and index | done | |
+| 3.2 claim via FOR UPDATE SKIP LOCKED | done | |
+| 4.1 scoped shared connection | done | |
+| 4.2 enlist in the caller's transaction | done | |
+| 5.1–5.8 call sites | 7 moved, 1 documented exception | |
+| 6.1 rules and skills | done | |
+| 6.2 docs site + changelog | done (committed in the docs repo, **not pushed**) | |
+| 6.3 issue reply | done on #1349 | |
+
+**Phases 2–6 completed 2026-08-07.** Full suite green: 1053 unit + 747 integration.
+
+Deviations from the plan text, all deliberate:
+
+- **Task 5 left Chat mentions on the bus.** The Notifications handler writes the row *and* pushes it over SignalR; a mention landing in the bell a dispatch cycle after the message appears reads as broken, and durability matters least there (the message itself is already persisted). The plan's Step 5 explicitly allows this; it is the only exception, and the reason is in a comment at the call site.
+- **Modules inject `IOutboxWriter`, not `IOutboxStore`.** `IOutboxStore` lives in the eventing runtime, which modules don't reference (and shouldn't — it would drag EF Core into every module). Added `IOutboxWriter` to `Eventing.Abstractions` as the publish-side contract; `IOutboxStore` extends it.
+- **Phase 4 needed a transaction registry, and the plan's fallback was the right call.** `DbConnection` exposes no way to ask whether a transaction is open on it, so `AmbientDbTransactionRegistry` (an `IDbTransactionInterceptor` on every Hero context) records them. Also: enlistment must *detach* a completed transaction, or the next write in the same scope fails on a disposed handle.
+- **Phase 5 broke six integration tests that encoded synchronous delivery.** They now drain via a new `OutboxDrain.DrainAsync` helper, which loops until a pass makes no progress — one cycle claims at most `OutboxBatchSize`, the suite shares one database so other tests' rows sit ahead in `CreatedOnUtc` order, and `TenantSubscribed → InvoiceIssued` needs a cycle each. A single `DispatchAsync` passed in isolation and failed in the full suite.
+
+Phase 4 landed without the feared fallout: the whole integration suite stayed green on the first run after connection sharing.
 
 Phase 1 exit criteria met 2026-08-07: build 0 warnings, 1040 unit tests green,
 737 integration tests green (1 pre-existing skip). Phase 6's `eventing.md` update

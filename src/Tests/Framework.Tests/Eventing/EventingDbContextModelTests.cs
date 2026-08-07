@@ -51,6 +51,18 @@ public class EventingDbContextModelTests
     }
 
     [Fact]
+    public void Outbox_Has_Claim_Index_For_Pending_Scan()
+    {
+        using var context = CreateContext();
+        var entity = context.Model.FindEntityType(typeof(OutboxMessage));
+
+        entity.ShouldNotBeNull();
+        entity!.GetIndexes()
+            .Any(i => i.GetDatabaseName() == "IX_OutboxMessages_Pending")
+            .ShouldBeTrue("the claim scan filters and orders on these columns under a row lock");
+    }
+
+    [Fact]
     public void Maps_InboxMessages_To_Framework_Schema()
     {
         using var context = CreateContext();

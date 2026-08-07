@@ -2,6 +2,7 @@ using FSH.Framework.Eventing;
 using FSH.Framework.Eventing.Abstractions;
 using FSH.Framework.Eventing.Outbox;
 using FSH.Framework.Eventing.Serialization;
+using FSH.Framework.Persistence;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -27,7 +28,8 @@ public class EfCoreOutboxStoreTests
             new JsonEventSerializer(),
             NullLogger<EfCoreOutboxStore>.Instance,
             TimeProvider.System,
-            Options.Create(new EventingOptions()));
+            Options.Create(new EventingOptions()),
+            new AmbientDbTransactionRegistry());
 
         var evt = new SampleEvent(
             Guid.CreateVersion7(),
