@@ -3,12 +3,11 @@ using FSH.Framework.Eventing.Abstractions;
 namespace FSH.Framework.Eventing.Outbox;
 
 /// <summary>
-/// Abstraction for persisting and reading outbox messages.
+/// Abstraction for persisting and reading outbox messages. Modules only ever need the publish
+/// side (<see cref="IOutboxWriter"/>); the rest of this surface belongs to the dispatcher.
 /// </summary>
-public interface IOutboxStore
+public interface IOutboxStore : IOutboxWriter
 {
-    Task AddAsync(IIntegrationEvent @event, CancellationToken ct = default);
-
     /// <summary>
     /// Atomically leases up to <paramref name="batchSize"/> pending messages to this dispatcher
     /// and returns them. Rows already leased by another instance are skipped rather than waited

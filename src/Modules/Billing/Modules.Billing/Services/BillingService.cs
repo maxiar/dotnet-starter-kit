@@ -18,7 +18,7 @@ public sealed class BillingService : IBillingService
     private readonly IUsageReporter _usageReporter;
     private readonly IMultiTenantStore<AppTenantInfo> _tenantStore;
     private readonly IMultiTenantContextAccessor<AppTenantInfo> _tenantAccessor;
-    private readonly IEventBus _eventBus;
+    private readonly IOutboxWriter _outbox;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<BillingService> _logger;
 
@@ -27,7 +27,7 @@ public sealed class BillingService : IBillingService
         IUsageReporter usageReporter,
         IMultiTenantStore<AppTenantInfo> tenantStore,
         IMultiTenantContextAccessor<AppTenantInfo> tenantAccessor,
-        IEventBus eventBus,
+        IOutboxWriter outbox,
         TimeProvider timeProvider,
         ILogger<BillingService> logger)
     {
@@ -35,7 +35,7 @@ public sealed class BillingService : IBillingService
         _usageReporter = usageReporter;
         _tenantStore = tenantStore;
         _tenantAccessor = tenantAccessor;
-        _eventBus = eventBus;
+        _outbox = outbox;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -214,7 +214,7 @@ public sealed class BillingService : IBillingService
                 invoice.InvoiceNumber, tenantId, invoice.SubtotalAmount.Amount, invoice.Currency);
         }
 
-        await _eventBus.PublishAsync(new InvoiceIssuedIntegrationEvent(
+        await _outbox.AddAsync(new InvoiceIssuedIntegrationEvent(
             Id: Guid.NewGuid(),
             OccurredOnUtc: now,
             TenantId: tenantId,
@@ -345,7 +345,7 @@ public sealed class BillingService : IBillingService
 
         // Notify (e.g. email the tenant) that a real bill was issued. Only fires for newly-created
         // invoices — the idempotent early-return above skips this on event redelivery.
-        await _eventBus.PublishAsync(new InvoiceIssuedIntegrationEvent(
+        await _outbox.AddAsync(new InvoiceIssuedIntegrationEvent(
             Id: Guid.NewGuid(),
             OccurredOnUtc: _timeProvider.GetUtcNow().UtcDateTime,
             TenantId: tenantId,
