@@ -113,8 +113,8 @@ public class IdentityModule : IModule
         services.AddHeroStorage(builder.Configuration);
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddHeroDbContext<IdentityDbContext>();
-        services.AddEventingCore(builder.Configuration);
-        services.AddEventingForDbContext<IdentityDbContext>();
+        // Eventing itself is bootstrapped by the host (AddEventingCore) — the outbox is framework
+        // infrastructure, not Identity's. Handler registration stays per module.
         services.AddIntegrationEventHandlers(typeof(IdentityModule).Assembly);
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<IdentityDbContext>(

@@ -2,9 +2,10 @@ using FSH.Framework.Eventing.Abstractions;
 using FSH.Framework.Eventing.Inbox;
 using FSH.Framework.Eventing.InMemory;
 using FSH.Framework.Eventing.Outbox;
+using FSH.Framework.Eventing.Persistence;
 using FSH.Framework.Eventing.RabbitMq;
 using FSH.Framework.Eventing.Serialization;
-using Microsoft.EntityFrameworkCore;
+using FSH.Framework.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -52,21 +53,15 @@ public static class ServiceCollectionExtensions
             services.AddHostedService<OutboxDispatcherHostedService>();
         }
 
-        return services;
-    }
-
-    /// <summary>
-    /// Registers EF Core-based outbox and inbox stores for the specified DbContext.
-    /// </summary>
-    public static IServiceCollection AddEventingForDbContext<TDbContext>(
-        this IServiceCollection services)
-        where TDbContext : DbContext
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        services.AddScoped<IOutboxStore, EfCoreOutboxStore<TDbContext>>();
-        services.AddScoped<IInboxStore, EfCoreInboxStore<TDbContext>>();
-        services.AddScoped<OutboxDispatcher>();
+        // One framework-owned context owns the outbox/inbox tables, so each store has exactly
+        // one registration. Registering them per module DbContext (the old
+        // AddEventingForDbContext<T>) left .NET DI resolving whichever module registered last —
+        // for the whole application, including Identity's working outbox (issue #1349).
+        services.AddHeroDbContext<EventingDbContext>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IDbInitializer, EventingDbInitializer>());
+        services.TryAddScoped<IOutboxStore, EfCoreOutboxStore>();
+        services.TryAddScoped<IInboxStore, EfCoreInboxStore>();
+        services.TryAddScoped<OutboxDispatcher>();
 
         return services;
     }
