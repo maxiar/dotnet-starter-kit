@@ -22,6 +22,9 @@ internal static class FshConstants
     internal const string LocalFeedEnvVar = "FSH_LOCAL_FEED";
     internal const string AgentsEnvVar = "FSH_AGENTS";
 
+    /// <summary>Env var selecting the default database provider for `fsh new` (postgresql | mssql).</summary>
+    public const string DbProviderEnvVar = "FSH_DB_PROVIDER";
+
     // Opt-in framework packaging (see src/Directory.Build.targets).
     internal const string FrameworkPackagePrefix = "FSH.Framework.";
     internal const string LocalFeedSourceName = "fsh-local";

@@ -400,8 +400,14 @@ Builds the global `fsh` tool from this repository. `install` must run inside a s
 | `--framework-packages [true\|false]` | — | consume BuildingBlocks as packages |
 | `--framework-version <ver>` | — | defaults to the newest in the feed |
 | `--framework-feed <path>` | `FSH_LOCAL_FEED` | written into the project's `NuGet.config` |
+| `--db-provider <postgresql\|mssql>` | `FSH_DB_PROVIDER` | default database provider; `mssql` requires **SQL Server 2025 or Azure SQL** |
 
 Every option resolves **flag → environment variable → default**.
+
+`--db-provider` only sets the *default*. Every scaffold contains **both** migrations projects
+(`<Name>.Migrations.PostgreSQL` and `<Name>.Migrations.MSSQL`), so switching a project later is a
+config change — set `DatabaseOptions:Provider` and the matching `DatabaseOptions:MigrationsAssembly`
+— with no rescaffold and no file surgery.
 
 `--agents` and `--framework-packages` accept a bare flag or an explicit value, so both
 `--agents` and `--agents true` work (and `--agents false` turns it off). Unknown options are a
