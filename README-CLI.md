@@ -368,7 +368,7 @@ Updates an existing project to a newer template as a reviewable git merge. Runs 
 | Option | Default | Notes |
 |---|---|---|
 | `--project <path>` | current directory | project to upgrade |
-| `--from-scaffold <ref>` | the commit `fsh new` made | common ancestor for the merge |
+| `--from-scaffold <ref>` | last upgrade, else the `fsh new` commit | common ancestor for the merge |
 | `-b, --branch <name>` | `fsh/template-upgrade` | branch the template changes land on |
 | `--template-path <path>` | `$FSH_TEMPLATE_PATH` | template to upgrade *to* |
 | `--template-version <ver>` | `$FSH_TEMPLATE_VERSION` | version to upgrade *to* |
@@ -461,8 +461,8 @@ fsh upgrade --merge                                      # ...and merge them str
 Re-generating over a project that has moved on would overwrite it. Instead the upgrade is a
 genuine three-way merge, and git does the hard part:
 
-- **The common ancestor** is the pristine scaffold commit `fsh new` created (found by its message,
-  or given with `--from-scaffold <ref>`).
+- **The common ancestor** is the most recent `fsh upgrade` commit, or the pristine scaffold commit
+  `fsh new` created if the project has never been upgraded. Override it with `--from-scaffold <ref>`.
 - **The new state** is a fresh scaffold of the *same* project — same name, same options — from the
   new template.
 - Committing that on a branch rooted at the ancestor and merging it forward preserves your changes
@@ -483,6 +483,17 @@ Two files get special handling, because `fsh new` writes them *after* the templa
 are committed in the baseline: `NuGet.config` and the per-project dev signing key in
 `appsettings.Development.json`. A plain regeneration would delete the first and revert the second to
 the shared placeholder, so both are carried forward from the baseline and never appear in the diff.
+
+### Repeat upgrades stay small
+
+Each upgrade roots at the previous one, so it replays only what the template changed since then.
+That matters more than it sounds: rooted at the original scaffold instead, every file an earlier
+upgrade introduced looks newly added again and collides with the copy already in the project. On a
+project that had been upgraded once, that was the difference between **130 files with 12 conflicts**
+and **17 files with one**.
+
+If a project was upgraded by hand, or its history was rewritten, point at the right commit with
+`--from-scaffold <ref>` — any commit whose tree is "the template as it was last time" works.
 
 ### Requirements
 

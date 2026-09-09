@@ -12,6 +12,11 @@ internal static class FshConstants
     // message to find the pristine scaffold commit to diff against.
     internal const string InitialCommitMessage = "Initial project from FullStackHero .NET Starter Kit";
 
+    // Written by `fsh upgrade` on its branch. The NEXT upgrade uses the most recent such commit as
+    // its merge ancestor, so each upgrade only replays what the template changed since the last one.
+    internal const string UpgradeCommitMessagePrefix = "chore: update ";
+    internal const string UpgradeCommitMessageSuffix = " to the latest FSH template";
+
     // Shared placeholder in appsettings.Development.json that `fsh new` replaces with a unique
     // per-project key. Upgrades must preserve the project's key, not reintroduce the placeholder.
     internal const string DevSigningKeyPlaceholder = "fsh-dev-only-do-not-use-in-prod-32+chars-min";

@@ -42,23 +42,56 @@ internal static class GitRunner
     }
 
     /// <summary>
-    /// Finds the pristine scaffold commit - the one <c>fsh new</c> created - by its message.
-    /// The oldest match wins, so a later commit quoting the message cannot shadow it.
+    /// Finds the commit an upgrade should treat as the template's previous state.
     /// </summary>
-    internal static async Task<string?> FindScaffoldCommitAsync(string repository, CancellationToken cancellationToken)
+    /// <remarks>
+    /// The most recent <c>fsh upgrade</c> commit if there is one, else the pristine scaffold commit
+    /// <c>fsh new</c> created.
+    ///
+    /// Using the newest upgrade rather than always the original scaffold is what keeps repeat
+    /// upgrades small. Rooted at the original scaffold, every file a previous upgrade introduced
+    /// looks newly added again and collides with the copy already in the branch - on a project that
+    /// had been upgraded once, that was the difference between 130 files with 12 conflicts and 17
+    /// files with one.
+    /// </remarks>
+    internal static async Task<string?> FindUpgradeBaselineAsync(string repository, CancellationToken cancellationToken)
+    {
+        string? latestUpgrade = await FindCommitAsync(
+            repository,
+            subject => subject.StartsWith(FshConstants.UpgradeCommitMessagePrefix, StringComparison.Ordinal)
+                       && subject.EndsWith(FshConstants.UpgradeCommitMessageSuffix, StringComparison.Ordinal),
+            newest: true,
+            cancellationToken).ConfigureAwait(false);
+
+        return latestUpgrade
+            ?? await FindCommitAsync(
+                repository,
+                subject => subject.Equals(FshConstants.InitialCommitMessage, StringComparison.Ordinal),
+                newest: false,
+                cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The oldest or newest commit whose subject matches, searching all refs so an upgrade commit
+    /// still counts when it lives only on a branch that was merged.
+    /// </summary>
+    private static async Task<string?> FindCommitAsync(
+        string repository, Func<string, bool> matches, bool newest, CancellationToken cancellationToken)
     {
         // "<hash> <subject>": a commit hash never contains a space, so one split is unambiguous.
         // %x20 rather than a literal space: the argument string is split on whitespace before it
         // reaches git, so "--format=%H %s" would arrive as two separate arguments.
+        // --all so a commit reachable only from the upgrade branch is still found.
+        string order = newest ? string.Empty : " --reverse";
         (bool ok, string output) = await RunAsync(
-            repository, "log --reverse --format=%H%x20%s", cancellationToken).ConfigureAwait(false);
+            repository, $"log --all{order} --format=%H%x20%s", cancellationToken).ConfigureAwait(false);
 
         if (!ok) return null;
 
         foreach (string line in output.Split('\n'))
         {
             string[] parts = line.Trim().Split(' ', 2);
-            if (parts.Length == 2 && parts[1].Trim().Equals(FshConstants.InitialCommitMessage, StringComparison.Ordinal))
+            if (parts.Length == 2 && matches(parts[1].Trim()))
                 return parts[0];
         }
 
