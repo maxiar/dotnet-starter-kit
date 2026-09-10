@@ -78,3 +78,34 @@ export function paged<T>(items: T[], overrides: Partial<{ pageNumber: number; pa
     hasNext: (overrides.pageNumber ?? 1) < (overrides.totalPages ?? Math.max(1, Math.ceil(totalCount / pageSize))),
   };
 }
+
+/**
+ * Override /config.json so the app boots with these UI modules hidden.
+ *
+ * Register BEFORE `seedAuthedSession` / navigation — `loadRuntimeConfig()`
+ * fetches once at boot with `cache: "no-store"`. The body is complete on
+ * purpose: `loadRuntimeConfig` maps keys explicitly, so a partial body would
+ * silently reset the other settings to their defaults.
+ *
+ * Passing `[]` is a meaningful case, not a no-op: it asserts that an empty list
+ * hides nothing (the failure mode this feature must never have).
+ */
+export async function withDisabledModules(
+  page: Page,
+  modules: readonly string[] | string,
+): Promise<void> {
+  await page.route("**/config.json", (route: Route) =>
+    route.fulfill({
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        apiBase: "",
+        defaultTenant: "root",
+        demoMode: false,
+        inactivityIdleMs: 1_200_000,
+        inactivityWarningMs: 60_000,
+        disabledModules: modules,
+      }),
+    }),
+  );
+}

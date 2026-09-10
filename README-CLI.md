@@ -159,6 +159,29 @@ The directory is created if it does not exist, and the path is unrelated to the 
 `FS.Proxy` can live in `fs-proxy/`, as above. If the target exists and is not empty, `fsh new`
 prompts before overwriting, and refuses outright under `--non-interactive`.
 
+### Hiding modules the new project doesn't use
+
+A scaffolded project gets every module, including ones it will never surface — a single-tenant app
+has no use for Billing, Webhooks or Health in its menus. The CLI has no flag for this; it is one
+edit per React app, in the runtime config:
+
+```jsonc
+// clients/admin/public/config.json   (and clients/dashboard/public/config.json)
+{
+  "apiBase": "",
+  "defaultTenant": "root",
+  "dashboardUrl": "http://localhost:5174",
+  "disabledModules": ["billing", "webhooks", "health", "auditing", "multitenancy"]
+}
+```
+
+The named modules disappear from the nav, the routes, and every card, tab and ⌘K entry that links
+to them. Nothing is deleted: the backend module stays registered, migrated and permission-guarded,
+so the change is purely about clutter and survives `fsh upgrade` as an ordinary config edit. Valid
+keys and the per-app mapping live in `clients/{admin,dashboard}/src/lib/modules.ts` and
+`.agents/rules/frontend/shared.md`. For containers, set `FSH_DISABLED_MODULES` (comma-separated)
+instead of editing the file.
+
 ---
 
 ## The everyday loop

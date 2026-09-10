@@ -20,6 +20,55 @@ class-variance-authority (shadcn-style) · `@microsoft/signalr`. Path alias `@` 
 
 `loadRuntimeConfig()` fetches `/config.json` once at boot (awaited in `main.tsx` before React mounts); `env` is a getter that throws if read too early. One built image promotes across environments (operator writes `config.json`). The only `VITE_*` var, `VITE_API_BASE_URL`, configures the **Vite dev proxy target only** — it is not the runtime apiBase (`config.json` ships `apiBase: ""`, relative).
 
+⚠️ **`env` is NOT readable at module scope.** `main.tsx` awaits `loadRuntimeConfig()` in its module
+*body*, but ESM evaluates the whole static-import graph (`main → App → routes`) first, so anything
+reading `env` at import time throws `"Runtime config not loaded"` during boot, with no error boundary
+above it. Read `env` inside functions / hooks / render only — that's why `routes.tsx` exports
+`getRouter()` (a lazy singleton, built on `App`'s first render) instead of a `router` const.
+
+Adding a key means four edits: the `RuntimeConfig` type + mapping in `src/env.ts`, `public/config.json`,
+`docker/config.json.template` (+ the var in `docker/docker-entrypoint.sh`), and Terraform's
+`runtime_config` in `deploy/terraform/apps/starter/app_stack/` (+ a variable). The explicit mapping in
+`loadRuntimeConfig` drops unknown keys, so a key missing from the type is silently ignored.
+
+## Hiding modules per deployment (`disabledModules`)
+
+A deployment can hide whole modules from the UI — a non-multitenant app doesn't want Billing, Webhooks
+or Health cluttering its nav. **Cosmetic only:** the backend module stays registered, migrated and
+permission-guarded; nothing is removed, so this is about clutter, not security.
+
+- **Config:** `"disabledModules": ["billing","webhooks"]` in `config.json`. Also accepts a
+  comma-separated string (`"billing,webhooks"`) because `envsubst` can only interpolate a flat string —
+  the Docker template uses `"${FSH_DISABLED_MODULES}"`, Terraform passes a real array.
+- **Default is "hide nothing".** Absent, `""` and `[]` all mean everything is visible, and unknown keys
+  are dropped (with a dev-only `console.warn`). Keep that direction: the failure mode worth engineering
+  against is a config *without* the key quietly hiding a module in production.
+- **Keys** live in `src/lib/modules.ts`, kept **byte-identical between the two apps** (mirrored the way
+  `lib/permissions.ts` mirrors the server registry) so one `FSH_DISABLED_MODULES` configures both
+  containers: `activity` `auditing` `billing` `catalog` `chat` `files` `health` `impersonation`
+  `multitenancy` `notifications` `tickets` `webhooks`.
+  There is deliberately **no `identity` key** — it underpins login, `/settings/*`, `RouteGuard` and the
+  chat user picker, so offering it would invite a config that bricks the app. And `files` gates the
+  *My Files* page, **not** the upload plumbing (the chat composer keeps working).
+- **Two axes, mirroring `perm`/`anyPerm`:** `module?: ModuleKey` (AND) and
+  `anyModule?: readonly ModuleKey[]` (OR, for a surface fronting several modules — e.g. Trash).
+- **Nav:** tag the item with `module` — the check lives inside the one gating helper per app
+  (`filterNavSpec` / `isNavItemVisible`), so desktop and the mobile drawer are both covered, and a
+  section left with no items is already dropped.
+- **Routes:** wrap the block in `...moduleRoutes("billing", [ … ])` (or `anyModuleRoutes([…], […])`).
+  The routes are *absent*, not gated, so a deep link falls through to the catch-all `*` NotFound exactly
+  like a URL that never existed — and the module's lazy chunk is never fetched.
+- **Everything else that links into a module must be gated too**, or it becomes a dead link: cards,
+  settings tabs, the command palette (dashboard ⌘K duplicates the whole nav graph), and `useQuery`
+  calls whose only consumer is a hidden widget (`enabled: isModuleEnabled("billing")`).
+- ⛔ **Never gate a provider** — `SseProvider` / `RealtimeProvider` in the dashboard's `AppShell`.
+  `Topbar` calls `useSseStatus()` unconditionally and the hook throws without its provider, which
+  white-screens the shell. Gate the *leaves* (`ChatUnreadBadge`, `ChatGlobalNotifier`).
+
+Known limitation: the dashboard's `overview.tsx` is substantially a billing dashboard (hero stats,
+first-run panel, "Valid for"). Hiding `billing` filters those widgets correctly but leaves a sparser
+page; redesigning it for a billing-less deployment is out of scope for the flag.
+
 ## Data fetching (TanStack Query v5)
 
 - Shared `queryClient` (`src/lib/query-client.ts`): `staleTime: 30_000`, `refetchOnWindowFocus:false`, no retry on 401/403 else `failureCount < 2`.
@@ -85,6 +134,9 @@ So "neutrals must be chroma 0" is a **dashboard** rule. Admin neutrals are inten
 1. API: extend `src/api/{feature}.ts` — hand-written types + `apiFetch` calls.
 2. Page: `src/pages/{area}/{name}.tsx`, **named** export. `useQuery` with hierarchical key; `useMutation` invalidating in `onSuccess`, passing per-call data via `mutate(arg)`.
 3. Route: add `const X = lazyNamed(() => import("@/pages/area/name"), "XPage")` and a child route under `AppShell`.
-4. Test: `tests/{area}/{name}.spec.ts` with seed + shell mocks + page mocks.
+4. Nav + module: register the sidebar item, and tag **both** the nav item and the route with the owning
+   `module` key (`src/lib/modules.ts`) if the page belongs to a hidable module — plus any card, tab or
+   palette entry that links to it.
+5. Test: `tests/{area}/{name}.spec.ts` with seed + shell mocks + page mocks.
 
 Then apply the app-specific steps in `admin.md` / `dashboard.md` (forms, permission gating, suspense, etc.).
