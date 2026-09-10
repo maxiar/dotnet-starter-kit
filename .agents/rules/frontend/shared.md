@@ -61,6 +61,9 @@ permission-guarded; nothing is removed, so this is about clutter, not security.
 - **Everything else that links into a module must be gated too**, or it becomes a dead link: cards,
   settings tabs, the command palette (dashboard ⌘K duplicates the whole nav graph), and `useQuery`
   calls whose only consumer is a hidden widget (`enabled: isModuleEnabled("billing")`).
+- **Playwright suites must not read the deployment's `disabledModules`** — see the stubbing note under
+  Testing. Otherwise setting the key in `public/config.json` fails every inherited spec for the hidden
+  modules (routes 404 for tests that navigate to them).
 - ⛔ **Never gate a provider** — `SseProvider` / `RealtimeProvider` in the dashboard's `AppShell`.
   `Topbar` calls `useSseStatus()` unconditionally and the hook throws without its provider, which
   white-screens the shell. Gate the *leaves* (`ChatUnreadBadge`, `ChatGlobalNotifier`).
@@ -126,6 +129,7 @@ So "neutrals must be chroma 0" is a **dashboard** rule. Admin neutrals are inten
 - `playwright.config.ts`: `testDir: ./tests`, chromium, auto-boots `npm run dev`, no real backend.
 - Tests in `tests/{area}/{name}.spec.ts`; helpers in `tests/helpers/`.
 - **JWT seeding:** `seedAuthedSession(page, TEST_USER)` builds a fake JWT and `addInitScript`-writes `fsh.{app}.*` to localStorage before React boots (server isn't called, so signature is junk).
+- **Runtime config is stubbed, not served.** `installShellMocks` calls `mockRuntimeConfig(page)`, which fulfils `/config.json` from `TEST_RUNTIME_CONFIG` (all modules enabled). That keeps a suite hermetic: a project generated from this template can hide modules in its own `public/config.json` without the inherited specs failing on routes that no longer exist. A spec that hand-rolls its mocks instead of calling the installer must call `mockRuntimeConfig(page)` itself. To vary it, call `mockRuntimeConfig(page, {…})` / `withDisabledModules(page, […])` **after** the installer — most recently registered handler wins.
 - **Route mocking:** `mockJsonResponse(page, urlGlob, body)` / `mockProblemDetails(...)`. `installShellMocks(page)` stubs every call `AppShell` fires and **aborts** SSE/SignalR. Playwright matches most-recently-registered first → broad shell mocks in `beforeEach`, page-specific mocks after (they win).
 - `beforeEach`: `seedAuthedSession(page, TEST_USER)` → `installShellMocks(page)`.
 
