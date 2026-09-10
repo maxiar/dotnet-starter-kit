@@ -1,3 +1,4 @@
+using FSH.Framework.Core.DataProtection;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
@@ -60,9 +61,23 @@ public static class Extensions
 
             // Persist Data Protection keys (auth cookies, reset/confirmation tokens, antiforgery) to
             // Redis so multi-instance hosts share a key ring and tokens survive rolling restarts.
-            services.AddDataProtection()
-                .PersistKeysToStackExchangeRedis(sharedMultiplexer, "DataProtection-Keys")
-                .SetApplicationName("FSH.Starter");
+            //
+            // The application name is what Data Protection isolates keys by, so it MUST differ per
+            // application. It is read from configuration rather than hard-coded here: this file
+            // also ships as a compiled FSH.Framework.Caching package, where the template's token
+            // substitution cannot reach it, so a literal would make every project built on the
+            // package share one key ring - and two such apps pointed at the same Redis could
+            // decrypt each other's auth cookies and tokens. appsettings.json IS scaffolded source,
+            // so the value there is renamed per project in both distribution modes.
+            // Skipped when the database store is selected: AddHeroPlatform wires the key ring to
+            // DataProtectionKeysDbContext instead. Configuring both would leave the last
+            // PersistKeysTo call silently deciding where keys actually land.
+            if (!DataProtectionStores.UsesDatabase(configuration[DataProtectionStores.ConfigurationKey]))
+            {
+                services.AddDataProtection()
+                    .PersistKeysToStackExchangeRedis(sharedMultiplexer, "DataProtection-Keys")
+                    .SetApplicationName(DataProtectionApplicationName.Resolve(configuration[DataProtectionApplicationName.ConfigurationKey]));
+            }
         }
 
         // HybridCache auto-composes with whatever IDistributedCache is registered above.
@@ -110,4 +125,6 @@ public static class Extensions
             return new ObservableHybridCache(inner);
         });
     }
+
+
 }

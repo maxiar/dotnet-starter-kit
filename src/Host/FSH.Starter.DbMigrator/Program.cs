@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Reflection;
+using FSH.Framework.Core.DataProtection;
 using FSH.Framework.Eventing;
+using FSH.Framework.Persistence.DataProtection;
 using FSH.Framework.Shared.Multitenancy;
 using FSH.Framework.Web;
 using FSH.Framework.Web.Modules;
@@ -162,6 +164,36 @@ foreach (var descriptor in builder.Services
 // the DI graph is satisfied; the verb dispatch below decides whether to call it.
 builder.Services.AddScoped<DemoSeeder>();
 
+// The Data Protection key table has to exist BEFORE the host starts, when keys live in the
+// database. Data Protection resolves its key ring eagerly during StartAsync, well before this
+// file's own Step 0/1/2 flow runs, so leaving it to the IDbInitializer means the first run against
+// an empty database logs a query failure with a stack trace — and, worse, does not fail: a key
+// created while the table is missing cannot be persisted, so anything encrypted in that window is
+// undecryptable afterwards. The initializer still covers the API and the test harness, which
+// migrate before they serve.
+//
+// This waits for the database itself, because Step 0's wait is also after StartAsync.
+if (DataProtectionStores.UsesDatabase(builder.Configuration[DataProtectionStores.ConfigurationKey]))
+{
+    using var bootstrapLoggerFactory = LoggerFactory.Create(b => b.AddConsole());
+    var bootstrapLogger = bootstrapLoggerFactory.CreateLogger("DataProtectionSchema");
+
+    var bootstrapProvider = builder.Configuration["DatabaseOptions:Provider"] ?? DbProviders.PostgreSQL;
+    var bootstrapConnectionString = builder.Configuration["DatabaseOptions:ConnectionString"]
+        ?? throw new InvalidOperationException("DatabaseOptions:ConnectionString is not configured.");
+
+    await MigratorLockFactory.Create(bootstrapProvider)
+        .WaitForDatabaseAsync(bootstrapConnectionString, bootstrapLogger, CancellationToken.None)
+        .ConfigureAwait(false);
+
+    await DataProtectionSchema.EnsureAsync(
+        bootstrapProvider,
+        bootstrapConnectionString,
+        builder.Configuration["DatabaseOptions:MigrationsAssembly"]
+            ?? throw new InvalidOperationException("DatabaseOptions:MigrationsAssembly is not configured."),
+        builder.Environment.IsDevelopment()).ConfigureAwait(false);
+}
+
 using var host = builder.Build();
 var logger = host.Services.GetRequiredService<ILogger<MigratorCommand>>();
 
@@ -240,7 +272,11 @@ try
                 MultitenancyConstants.Root.Name,
                 connectionString: string.Empty,
                 MultitenancyConstants.Root.EmailAddress,
-                issuer: MultitenancyConstants.Root.Issuer);
+                // From configuration, not the framework constant: BuildingBlocks also ships as a
+                // compiled package where the template cannot rename a literal, so the constant is
+                // only the last-resort default. appsettings.json is scaffolded source and is
+                // renamed per project in both modes.
+                issuer: builder.Configuration["Multitenancy:RootIssuer"] ?? MultitenancyConstants.Root.Issuer);
             rootTenant.SetValidity(TimeProvider.System.GetUtcNow().UtcDateTime.AddYears(1));
             await tenantDb.TenantInfo.AddAsync(rootTenant, CancellationToken.None).ConfigureAwait(false);
             await tenantDb.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);

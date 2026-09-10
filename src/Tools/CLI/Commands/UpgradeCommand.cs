@@ -81,12 +81,12 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
         }
 
         string? baseline = settings.FromScaffold
-            ?? await GitRunner.FindScaffoldCommitAsync(project.Root, cancellationToken).ConfigureAwait(false);
+            ?? await GitRunner.FindUpgradeBaselineAsync(project.Root, cancellationToken).ConfigureAwait(false);
 
         if (baseline is null)
         {
             AnsiConsole.MarkupLine($"[{FshConstants.ErrorColor}]Could not find the original scaffold commit.[/]");
-            AnsiConsole.MarkupLine($"[{FshConstants.DimColor}]Looked for a commit named \"{FshConstants.InitialCommitMessage}\".[/]");
+            AnsiConsole.MarkupLine($"[{FshConstants.DimColor}]Looked for a previous upgrade commit, then for \"{FshConstants.InitialCommitMessage}\".[/]");
             AnsiConsole.MarkupLine($"[{FshConstants.DimColor}]Point at it explicitly with --from-scaffold <ref>.[/]");
             return 1;
         }
@@ -97,7 +97,7 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
         summary.AddColumn("[bold]Setting[/]");
         summary.AddColumn("[bold]Value[/]");
         summary.AddRow("Project", $"{project.Name.EscapeMarkup()}  [{FshConstants.DimColor}]({project.Root.EscapeMarkup()})[/]");
-        summary.AddRow("Scaffold commit", $"[{FshConstants.AccentColor}]{baseline[..Math.Min(8, baseline.Length)]}[/]");
+        summary.AddRow("Baseline", $"[{FshConstants.AccentColor}]{baseline[..Math.Min(8, baseline.Length)]}[/]");
         summary.AddRow("Options", options.Describe());
         AnsiConsole.Write(summary);
         AnsiConsole.WriteLine();
@@ -313,7 +313,7 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
         }
 
         await GitRunner.RunAsync(
-            worktree, $"commit -q -m \"chore: update {project.Name} to the latest FSH template\"", cancellationToken)
+            worktree, $"commit -q -m \"{FshConstants.UpgradeCommitMessagePrefix}{project.Name}{FshConstants.UpgradeCommitMessageSuffix}\"", cancellationToken)
             .ConfigureAwait(false);
 
         (_, string stat) = await GitRunner

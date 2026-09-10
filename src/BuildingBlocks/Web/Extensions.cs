@@ -1,4 +1,6 @@
 ﻿using FSH.Framework.Caching;
+using FSH.Framework.Core.DataProtection;
+using FSH.Framework.Persistence.DataProtection;
 using FSH.Framework.Jobs;
 using FSH.Framework.Mailing;
 using FSH.Framework.Persistence;
@@ -25,7 +27,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Mediator;
@@ -102,6 +107,25 @@ public static class Extensions
             {
                 builder.Services.AddHealthChecks().AddCheck<RedisHealthCheck>("redis");
             }
+        }
+
+        // Data Protection keys in the database rather than Redis. Wired here because this is the
+        // only place that sees both Caching (which owns the Redis store) and Persistence (which
+        // owns the context); Caching skips its own wiring when this store is selected.
+        //
+        // Worth choosing when the hosts that protect and unprotect data do not reliably share a
+        // Redis instance — the DbMigrator is normally run standalone, outside the AppHost wiring
+        // that injects a Redis connection string — or when Redis is a cache with eviction, where
+        // losing a key evicts every session and pending reset token with it.
+        if (DataProtectionStores.UsesDatabase(builder.Configuration[DataProtectionStores.ConfigurationKey]))
+        {
+            builder.Services.AddHeroDbContext<DataProtectionKeysDbContext>();
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Scoped<IDbInitializer, DataProtectionKeysDbInitializer>());
+
+            builder.Services.AddDataProtection()
+                .PersistKeysToDbContext<DataProtectionKeysDbContext>()
+                .SetApplicationName(DataProtectionApplicationName.Resolve(builder.Configuration[DataProtectionApplicationName.ConfigurationKey]));
         }
 
         if (options.EnableFeatureFlags)
