@@ -267,17 +267,19 @@ stale one, and uninstalls the previous copy first — two template packages shar
 
 ## Shipping the `.agents` kit
 
+The kit ships **by default** (matching upstream). To leave it out:
+
 ```bash
-fsh new MyApp --agents
+fsh new MyApp --no-agents        # or --agents false, or FSH_AGENTS=0
 ```
 
-This writes `.agents/` (43 files of rules, skills and workflows) plus `AGENTS.md`, `CLAUDE.md` and
+By default `fsh new` writes `.agents/` (43 files of rules, skills and workflows) plus `AGENTS.md`, `CLAUDE.md` and
 `GEMINI.md` into the project, so Claude Code, Cursor, Gemini CLI and friends start with real
 context instead of guessing.
 
-Without the flag, none of those four are written. That also fixes a long-standing wart: `AGENTS.md`
-used to ship on its own, leaving every project with a rules index pointing at files that were never
-copied.
+The four always travel together: opting out drops all of them, so a project never gets an
+`AGENTS.md` whose rules index points at files that were never copied. Passing `--agents` explicitly is
+still accepted, and is a no-op now that it is the default.
 
 **One caveat.** The template engine rewrites tokens throughout the copied files, including these.
 That is mostly what you want — `src/Host/FSH.Starter.Api` correctly becomes `src/Host/MyApp.Api`,
@@ -438,7 +440,8 @@ Builds the global `fsh` tool from this repository. `install` must run inside a s
 | `--template-version <ver>` | `FSH_TEMPLATE_VERSION` | installs `FullStackHero.NET.StarterKit::<ver>` |
 | `--template-source <feed>` | `FSH_TEMPLATE_SOURCE` | extra NuGet source for the install |
 | `--refresh-template` | — | re-install even if a template is present |
-| `--agents [true\|false]` | `FSH_AGENTS=1` | include `.agents` + `AGENTS.md`/`CLAUDE.md`/`GEMINI.md` |
+| `--agents [true\|false]` | `FSH_AGENTS=0` to disable | include `.agents` + `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`; **on by default** |
+| `--no-agents` | — | upstream's opt-out spelling; same as `--agents false` |
 | `--framework-packages [true\|false]` | — | consume BuildingBlocks as packages |
 | `--framework-version <ver>` | — | defaults to the newest in the feed |
 | `--framework-feed <path>` | `FSH_LOCAL_FEED` | written into the project's `NuGet.config` |

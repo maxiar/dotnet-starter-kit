@@ -106,6 +106,12 @@ test.describe("overview (/)", () => {
     // At desktop widths the card sits in a narrow column beside the 360px
     // rail, so tiles sized off the viewport squeeze titles past their box.
     // A wide card must not spread the four tiles 3+1 or 4-up either.
+    // Tiles are permission-gated (fork: disabledModules), so grant what all four need.
+    await mockJsonResponse(page, "**/api/v1/identity/permissions", [
+      "Permissions.Users.Update",
+      "Permissions.Catalog.Products.View",
+      "Permissions.Billing.View",
+    ]);
     for (const width of [1280, 2200]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto("/");
