@@ -39,7 +39,7 @@ public sealed class PurgeJobsPerTenantTests
         _auth = new AuthHelper(factory);
     }
 
-    [Fact]
+    [PostgresOnlyFact]
     public async Task PurgeDeletedFilesJob_Should_PurgeAndRefundQuota_InEveryTenant_IncludingDedicatedDatabase()
     {
         // Arrange
@@ -81,7 +81,7 @@ public sealed class PurgeJobsPerTenantTests
             "no refund may be recorded against an empty tenant id");
     }
 
-    [Fact]
+    [PostgresOnlyFact]
     public async Task PurgeOrphanedFilesJob_Should_PurgeExpiredPendingUploads_InEveryTenant_IncludingDedicatedDatabase()
     {
         // Arrange

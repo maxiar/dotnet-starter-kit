@@ -248,7 +248,7 @@ public sealed class StorageVisibilityRootTests
         }
     }
 
-    [Fact]
+    [PostgresOnlyFact]
     public async Task MigrationJob_Should_SkipAFile_WhoseVisibilityChangedWhileTheJobWaitedForIt()
     {
         // Arrange — a legacy public file, then another writer holding its row (as a visibility flip would).
