@@ -308,6 +308,10 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
         if (staged && string.IsNullOrWhiteSpace(status))
         {
             AnsiConsole.MarkupLine($"[{FshConstants.SuccessColor}]Already up to date[/] - the template produces the same output as your scaffold.");
+
+            // The branch is still checked out in the worktree, and git refuses to delete a branch a
+            // worktree holds - so drop the worktree first, or the empty branch is left behind.
+            await GitRunner.RunAsync(project.Root, $"worktree remove --force \"{worktree}\"", cancellationToken).ConfigureAwait(false);
             await GitRunner.RunAsync(project.Root, $"branch -D {branch}", cancellationToken).ConfigureAwait(false);
             return 0;
         }
