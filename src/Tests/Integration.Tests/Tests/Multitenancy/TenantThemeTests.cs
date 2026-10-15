@@ -51,8 +51,8 @@ public sealed class TenantThemeTests : IAsyncLifetime
         using var rootClient = await _auth.CreateRootAdminClientAsync();
         await CreateTenantAsync(rootClient, _tenantA, _tenantAAdminEmail);
         await CreateTenantAsync(rootClient, _tenantB, _tenantBAdminEmail);
-        await WaitForProvisioningAsync(rootClient, _tenantA);
-        await WaitForProvisioningAsync(rootClient, _tenantB);
+        await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, _tenantA);
+        await TenantProvisioningWait.WaitForProvisioningAsync(rootClient, _tenantB);
 
         // Ensure both tenant admins are queryable (token issuance is the strongest
         // cross-check that identity seeding finished — see TenantHeaderOverrideTests).
@@ -241,7 +241,7 @@ public sealed class TenantThemeTests : IAsyncLifetime
             clientA.DefaultRequestHeaders.Authorization = new("Bearer", rootToken.AccessToken);
             clientA.DefaultRequestHeaders.Add("tenant", _tenantA);
             var update = await clientA.PutAsJsonAsync(ThemePath, ValidTheme(primary: marker));
-            update.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+            await ShouldHaveStatusAsync(update, HttpStatusCode.NoContent);
         }
 
         // Act — root operator now scopes to tenant B and reads its theme.
@@ -251,7 +251,7 @@ public sealed class TenantThemeTests : IAsyncLifetime
         var responseB = await clientB.GetAsync(ThemePath);
 
         // Assert — tenant B must NOT see tenant A's customization.
-        responseB.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await ShouldHaveStatusAsync(responseB, HttpStatusCode.OK);
         var themeB = await responseB.Content.ReadFromJsonAsync<TenantThemeDto>(Json);
         themeB.ShouldNotBeNull();
         themeB.LightPalette.Primary.ShouldNotBe(marker);
@@ -375,6 +375,23 @@ public sealed class TenantThemeTests : IAsyncLifetime
         };
     }
 
+    // The root-operator path here has been seen returning 401 intermittently on a loaded machine, and a
+    // bare status assertion says nothing about why: JwtBearer puts the validation failure reason in the
+    // ProblemDetails body (OnChallenge, Development only), so carry the body into the failure message.
+    // Cause still unidentified; this exists so the next occurrence is diagnosable instead of a mystery.
+    private static async Task ShouldHaveStatusAsync(HttpResponseMessage response, HttpStatusCode expected)
+    {
+        if (response.StatusCode == expected)
+        {
+            return;
+        }
+
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.ShouldBe(
+            expected,
+            $"{response.RequestMessage?.Method} {response.RequestMessage?.RequestUri} returned body: {body}");
+    }
+
     private async Task<TokenResult> GetTokenWithRetryAsync(string email, string password, string tenant, int maxRetries = 30)
     {
         Exception? last = null;
@@ -406,28 +423,6 @@ public sealed class TenantThemeTests : IAsyncLifetime
         });
         var body = await response.Content.ReadAsStringAsync();
         response.StatusCode.ShouldBe(HttpStatusCode.Created, $"Create tenant failed: {body}");
-    }
-
-    private static async Task WaitForProvisioningAsync(HttpClient client, string tenantId, int maxRetries = 60)
-    {
-        for (var i = 0; i < maxRetries; i++)
-        {
-            var statusResponse = await client.GetAsync($"{TestConstants.TenantsBasePath}/{tenantId}/provisioning");
-            if (statusResponse.IsSuccessStatusCode)
-            {
-                var content = await statusResponse.Content.ReadAsStringAsync();
-                if (content.Contains("Completed", StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-                if (content.Contains("Failed", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException($"Tenant {tenantId} provisioning failed: {content}");
-                }
-            }
-            await Task.Delay(1000);
-        }
-        throw new TimeoutException($"Tenant {tenantId} did not finish provisioning.");
     }
 
     // Local copy of the theme response shape — only the fields these tests assert on.

@@ -1,3 +1,4 @@
+using FSH.Framework.Persistence;
 using FSH.Framework.Persistence.Providers;
 using FSH.Framework.Shared.Persistence;
 using FSH.Modules.Tickets.Contracts.Dtos;
@@ -50,7 +51,7 @@ public sealed class SearchTicketsQueryHandler(TicketsDbContext dbContext)
         // Project with comment count via subquery so we don't have to
         // materialize the comments collection just to count it.
         var projected = await q
-            .Skip((page - 1) * size)
+            .Skip(PaginationExtensions.GetOffset(page, size))
             .Take(size)
             .Select(t => new
             {

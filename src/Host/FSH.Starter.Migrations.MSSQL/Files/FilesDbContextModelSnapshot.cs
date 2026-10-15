@@ -18,7 +18,7 @@ namespace FSH.Starter.Migrations.MSSQL.Files
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("files")
-                .HasAnnotation("ProductVersion", "10.0.8")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -98,6 +98,10 @@ namespace FSH.Starter.Migrations.MSSQL.Files
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Id")
+                        .HasDatabaseName("IX_FileAsset_LegacyKey")
+                        .HasFilter("[Visibility] = 0 AND [Status] = 1");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_FileAsset_Status");
