@@ -31,6 +31,11 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         [DefaultValue(false)]
         public bool NoFrontend { get; init; }
 
+        [Description("Exclude the AI coding guides (AGENTS.md, CLAUDE.md, GEMINI.md, .agents/).")]
+        [CommandOption("--no-agents")]
+        [DefaultValue(false)]
+        public bool NoAgents { get; init; }
+
         [Description("Skip 'npm install' for the React apps after scaffolding.")]
         [CommandOption("--skip-install")]
         [DefaultValue(false)]
@@ -68,7 +73,7 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         [DefaultValue(false)]
         public bool RefreshTemplate { get; init; }
 
-        [Description("Include the .agents AI rules/skills kit and AGENTS.md. Env: FSH_AGENTS=1.")]
+        [Description("Include the AI coding guides (on by default). --agents false or FSH_AGENTS=0 turns them off.")]
         [CommandOption("--agents [VALUE]")]
         public FlagValue<bool?> Agents { get; init; } = new();
 
@@ -142,7 +147,7 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
 
         bool frontend = await ResolveFrontendAsync(settings, cancellationToken).ConfigureAwait(false);
 
-        bool agents = await ResolveAgentsAsync(settings, cancellationToken).ConfigureAwait(false);
+        bool agents = ResolveAgents(settings);
 
         DbProviderChoice dbProvider = await ResolveDbProviderAsync(settings, cancellationToken).ConfigureAwait(false);
 
@@ -278,18 +283,23 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
             .ShowAsync(AnsiConsole.Console, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<bool> ResolveAgentsAsync(Settings settings, CancellationToken cancellationToken)
+    /// <summary>
+    /// Resolves whether to ship the AI guides: --no-agents -> --agents [value] -> env var -> on.
+    /// </summary>
+    /// <remarks>
+    /// On by default, matching upstream: AGENTS.md points at CLAUDE.md, GEMINI.md and .agents/, so
+    /// shipping it without them leaves a guide full of dead links.
+    /// </remarks>
+    private static bool ResolveAgents(Settings settings)
     {
-        if (Settings.IsFlagSet(settings.Agents)) return true;
+        if (settings.NoAgents) return false;
+
+        if (settings.Agents is { IsSet: true } explicitChoice) return explicitChoice.Value ?? true;
 
         string? fromEnvironment = Environment.GetEnvironmentVariable(FshConstants.AgentsEnvVar);
-        if (fromEnvironment is "1" or "true" or "TRUE" or "True") return true;
+        if (fromEnvironment is "0" or "false" or "FALSE" or "False") return false;
 
-        if (settings.NonInteractive) return false;
-
-        return await new ConfirmationPrompt($"[{FshConstants.AccentColor}]Include the .agents AI rules kit (AGENTS.md + rules/skills)?[/]")
-            { DefaultValue = false }
-            .ShowAsync(AnsiConsole.Console, cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     /// <summary>
@@ -347,7 +357,7 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         AnsiConsole.MarkupLine($"[bold]Creating project:[/] {name.EscapeMarkup()}{mode}");
         AnsiConsole.MarkupLine($"  [{FshConstants.DimColor}]Aspire:[/]    {(aspire ? "yes" : "no")}");
         AnsiConsole.MarkupLine($"  [{FshConstants.DimColor}]Frontend:[/]  {(frontend ? "yes (admin + dashboard)" : "no")}");
-        AnsiConsole.MarkupLine($"  [{FshConstants.DimColor}]Agents:[/]    {(agents ? "yes (.agents + AGENTS.md)" : "no")}");
+        AnsiConsole.MarkupLine($"  [{FshConstants.DimColor}]AI guides:[/] {(agents ? "yes (AGENTS.md, CLAUDE.md, GEMINI.md, .agents/)" : "no")}");
         AnsiConsole.MarkupLine($"  [{FshConstants.DimColor}]Database:[/]  {(dbProvider == DbProviderChoice.Mssql
             ? "SQL Server [yellow](requires SQL Server 2025 or Azure SQL)[/]"
             : "PostgreSQL")}");
@@ -545,12 +555,13 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
             ["POSTGRES_PASSWORD"] = GenerateSecret(24),
             ["MSSQL_SA_PASSWORD"] = GenerateSecret(24),
             ["REDIS_PASSWORD"] = GenerateSecret(24),
-            ["MINIO_ROOT_USER"] = "minioadmin",
-            ["MINIO_ROOT_PASSWORD"] = GenerateSecret(24),
+            ["RUSTFS_ACCESS_KEY"] = "rustfsadmin",
+            ["RUSTFS_SECRET_KEY"] = GenerateSecret(24),
             // Local-working defaults: the compose stack publishes these host ports.
             ["FSH_API_URL"] = "http://localhost:8080",
             ["FSH_ADMIN_URL"] = "http://localhost:8081",
-            ["FSH_DASHBOARD_URL"] = "http://localhost:8082"
+            ["FSH_DASHBOARD_URL"] = "http://localhost:8082",
+            ["FSH_S3_PUBLIC_URL"] = "http://localhost:9000"
         };
 
         string[] lines = File.ReadAllLines(examplePath);

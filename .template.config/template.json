@@ -35,6 +35,12 @@
             "description": "Include the React admin + dashboard client apps (clients/).",
             "defaultValue": "true"
         },
+        "agents": {
+            "type": "parameter",
+            "datatype": "bool",
+            "description": "Include the AI coding guides (AGENTS.md, CLAUDE.md, GEMINI.md and .agents/).",
+            "defaultValue": "true"
+        },
         "skipRestore": {
             "type": "parameter",
             "datatype": "bool",
@@ -45,12 +51,6 @@
             "type": "parameter",
             "datatype": "bool",
             "description": "Internal: keep the fsh CLI project in the solution (FSH repo only).",
-            "defaultValue": "false"
-        },
-        "agents": {
-            "type": "parameter",
-            "datatype": "bool",
-            "description": "Include the .agents AI rules/skills kit and AGENTS.md, CLAUDE.md, GEMINI.md.",
             "defaultValue": "false"
         },
         "frameworkPackages": {
@@ -131,6 +131,23 @@
         "underscoreForm": { "identifier": "replace", "pattern": "\\.", "replacement": "_" },
         "displayForm": { "identifier": "replace", "pattern": "[._-]+", "replacement": " " }
     },
+    "SpecialCustomOperations": {
+        "**/*.md": {
+            "operations": [
+                {
+                    "type": "conditional",
+                    "configuration": {
+                        "if": ["<!--#if"],
+                        "else": ["<!--#else"],
+                        "elseif": ["<!--#elseif"],
+                        "endif": ["<!--#endif"],
+                        "trim": "true",
+                        "wholeLine": "true"
+                    }
+                }
+            ]
+        }
+    },
     "sources": [
         {
             "source": "./",
@@ -144,6 +161,8 @@
                 ".claude/**",
                 ".devcontainer/**",
                 ".git/**",
+                ".git",
+                "superpowers/**",
                 "templates/**/*",
                 "demo/**",
                 "docs/**",
@@ -183,18 +202,18 @@
                     ]
                 },
                 {
-                    "condition": "(!frontend)",
+                    "condition": "(!agents)",
                     "exclude": [
-                        "clients/**"
+                        "AGENTS.md",
+                        "CLAUDE.md",
+                        "GEMINI.md",
+                        ".agents/**"
                     ]
                 },
                 {
-                    "condition": "(!agents)",
+                    "condition": "(!frontend)",
                     "exclude": [
-                        ".agents/**",
-                        "AGENTS.md",
-                        "CLAUDE.md",
-                        "GEMINI.md"
+                        "clients/**"
                     ]
                 },
                 {

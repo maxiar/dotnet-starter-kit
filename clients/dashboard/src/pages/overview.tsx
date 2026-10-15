@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CreditCard,
   Gauge,
+  Lock,
   Package,
   RefreshCw,
   ScrollText,
@@ -43,7 +44,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EntityDetailSection } from "@/components/list";
 import { useAuth } from "@/auth/use-auth";
-import { useSseEvents, useSseStatus, type SseEvent, type SseStatus } from "@/sse/sse-context";
+import {
+  useSseEvents,
+  useSseStatus,
+  type SseEvent,
+  type SseStatus,
+} from "@/sse/sse-context";
 import { cn } from "@/lib/cn";
 import { isModuleEnabled, type ModuleKey } from "@/lib/modules";
 
@@ -73,7 +79,10 @@ function toUsageRows(snapshots: UsageSnapshotDto[]): UsageRowVm[] {
       used: s.usedUnits,
       limit: s.limitUnits,
       overage: s.overage,
-      utilization: s.limitUnits > 0 ? Math.min(100, (s.usedUnits / s.limitUnits) * 100) : 0,
+      utilization:
+        s.limitUnits > 0
+          ? Math.min(100, (s.usedUnits / s.limitUnits) * 100)
+          : 0,
     }))
     .sort((a, b) => b.utilization - a.utilization);
 }
@@ -93,7 +102,8 @@ function subscriptionProgress(
   if (!endUtc) return null;
   const start = Date.parse(startUtc);
   const end = Date.parse(endUtc);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
+    return null;
   return Math.min(1, Math.max(0, (now.getTime() - start) / (end - start)));
 }
 
@@ -140,7 +150,12 @@ function validityView(status: TenantStatusDto | undefined): {
   daysLeft: number | null;
 } {
   if (!status) {
-    return { tone: "success", state: undefined, targetUtc: null, daysLeft: null };
+    return {
+      tone: "success",
+      state: undefined,
+      targetUtc: null,
+      daysLeft: null,
+    };
   }
   if (status.expiryState === "Expired") {
     return { tone: "danger", state: "Expired", targetUtc: null, daysLeft: 0 };
@@ -174,11 +189,15 @@ function formatClock(ts: number) {
   return timeFmt.format(new Date(ts));
 }
 
-function eventTone(type: string): "default" | "success" | "warning" | "danger" | "brand" {
+function eventTone(
+  type: string,
+): "default" | "success" | "warning" | "danger" | "brand" {
   const t = type.toLowerCase();
-  if (t.includes("fail") || t.includes("error") || t.includes("revoke")) return "danger";
+  if (t.includes("fail") || t.includes("error") || t.includes("revoke"))
+    return "danger";
   if (t.includes("warn") || t.includes("retry")) return "warning";
-  if (t.includes("login") || t.includes("issued") || t.includes("created")) return "success";
+  if (t.includes("login") || t.includes("issued") || t.includes("created"))
+    return "success";
   if (t.includes("token") || t.includes("auth")) return "brand";
   return "default";
 }
@@ -191,10 +210,14 @@ function eventTone(type: string): "default" | "success" | "warning" | "danger" |
 type StatTone = "primary" | "success" | "warning" | "danger" | "info";
 
 const STAT_TONE_BG: Record<StatTone, string> = {
-  primary: "bg-[oklch(from_var(--color-primary)_l_c_h_/_0.10)] text-[var(--color-primary)]",
-  success: "bg-[oklch(from_var(--color-success)_l_c_h_/_0.10)] text-[var(--color-success)]",
-  warning: "bg-[oklch(from_var(--color-warning)_l_c_h_/_0.12)] text-[var(--color-warning)]",
-  danger: "bg-[oklch(from_var(--color-destructive)_l_c_h_/_0.10)] text-[var(--color-destructive)]",
+  primary:
+    "bg-[oklch(from_var(--color-primary)_l_c_h_/_0.10)] text-[var(--color-primary)]",
+  success:
+    "bg-[oklch(from_var(--color-success)_l_c_h_/_0.10)] text-[var(--color-success)]",
+  warning:
+    "bg-[oklch(from_var(--color-warning)_l_c_h_/_0.12)] text-[var(--color-warning)]",
+  danger:
+    "bg-[oklch(from_var(--color-destructive)_l_c_h_/_0.10)] text-[var(--color-destructive)]",
   info: "bg-[oklch(from_var(--color-info)_l_c_h_/_0.10)] text-[var(--color-info)]",
 };
 
@@ -275,7 +298,9 @@ function UsageRow({ row }: { row: UsageRowVm }) {
         <span className="truncate text-[12.5px] font-medium tracking-tight text-foreground">
           {row.resource}
         </span>
-        {overage && <Badge variant="danger">+{formatNumber(row.overage)}</Badge>}
+        {overage && (
+          <Badge variant="danger">+{formatNumber(row.overage)}</Badge>
+        )}
       </div>
 
       <div className="text-right tabular-nums">
@@ -325,7 +350,13 @@ function UsageSkeleton() {
   );
 }
 
-function UsageEmpty({ title, description }: { title: string; description: string }) {
+function UsageEmpty({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
       <span
@@ -334,7 +365,9 @@ function UsageEmpty({ title, description }: { title: string; description: string
       >
         <Gauge className="size-3.5 text-[var(--color-primary)]" />
       </span>
-      <div className="text-[13px] font-semibold tracking-tight text-foreground">{title}</div>
+      <div className="text-[13px] font-semibold tracking-tight text-foreground">
+        {title}
+      </div>
       <p className="max-w-sm text-[11.5px] leading-relaxed text-muted-foreground">
         {description}
       </p>
@@ -420,7 +453,10 @@ function SubscriptionBody({
           <span
             aria-hidden
             className="pulse-dot inline-block h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: "var(--color-success)", color: "var(--color-success)" }}
+            style={{
+              backgroundColor: "var(--color-success)",
+              color: "var(--color-success)",
+            }}
           />
           {data.status}
         </Badge>
@@ -479,7 +515,11 @@ function SystemStatusBody({
   const live = sseStatus === "connected";
   const errored = sseStatus === "error";
   const Icon = live ? Wifi : WifiOff;
-  const tone: "success" | "danger" | "default" = live ? "success" : errored ? "danger" : "default";
+  const tone: "success" | "danger" | "default" = live
+    ? "success"
+    : errored
+      ? "danger"
+      : "default";
 
   const toneBg =
     tone === "success"
@@ -547,17 +587,54 @@ function SystemStatusBody({
 
 function recentSeverityColor(severity: AuditSeverity): string {
   const rank = severityRank(severity);
-  if (rank >= severityRank(AuditSeverity.Error)) return "var(--color-destructive)";
-  if (rank >= severityRank(AuditSeverity.Warning)) return "var(--color-warning)";
-  if (rank >= severityRank(AuditSeverity.Information)) return "var(--color-info)";
+  if (rank >= severityRank(AuditSeverity.Error))
+    return "var(--color-destructive)";
+  if (rank >= severityRank(AuditSeverity.Warning))
+    return "var(--color-warning)";
+  if (rank >= severityRank(AuditSeverity.Information))
+    return "var(--color-info)";
   return "var(--color-muted-foreground)";
 }
 
-function recentEventTypeIcon(eventType: AuditEventType): React.ComponentType<{ className?: string }> {
+function recentEventTypeIcon(
+  eventType: AuditEventType,
+): React.ComponentType<{ className?: string }> {
   if (eventType === AuditEventType.Security) return ShieldCheck;
   if (eventType === AuditEventType.Exception) return Activity;
   if (eventType === AuditEventType.EntityChange) return Server;
   return Activity;
+}
+
+/** Mirrors the permission GET /api/v1/audits enforces server-side. */
+const AUDIT_VIEW_PERMISSION = "Permissions.AuditTrails.View";
+
+function RecentAuditsSkeleton() {
+  return (
+    <ul className="space-y-2.5">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <li key={i} className="flex items-center gap-3">
+          <Skeleton className="size-7 rounded-md" />
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="ml-auto h-3 w-16" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RecentAuditsNoAccess() {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6 text-center">
+      <Lock className="size-4 text-muted-foreground" />
+      <div className="text-[13px] font-semibold tracking-tight text-foreground">
+        No access to audits
+      </div>
+      <p className="max-w-sm text-[11.5px] text-muted-foreground">
+        Recent audits need the Audit trail permission. Ask an administrator if
+        you need it.
+      </p>
+    </div>
+  );
 }
 
 function RecentAuditsBody() {
@@ -568,7 +645,12 @@ function RecentAuditsBody() {
       const to = new Date();
       const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
       return listAudits(
-        { pageNumber: 1, pageSize: 5, fromUtc: from.toISOString(), toUtc: to.toISOString() },
+        {
+          pageNumber: 1,
+          pageSize: 5,
+          fromUtc: from.toISOString(),
+          toUtc: to.toISOString(),
+        },
         signal,
       );
     },
@@ -578,17 +660,7 @@ function RecentAuditsBody() {
   const items = recentAudits.data?.items ?? [];
 
   if (recentAudits.isLoading) {
-    return (
-      <ul className="space-y-2.5">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <li key={i} className="flex items-center gap-3">
-            <Skeleton className="size-7 rounded-md" />
-            <Skeleton className="h-3 w-32" />
-            <Skeleton className="ml-auto h-3 w-16" />
-          </li>
-        ))}
-      </ul>
-    );
+    return <RecentAuditsSkeleton />;
   }
 
   if (items.length === 0) {
@@ -642,7 +714,9 @@ function RecentAuditRow({ row }: { row: AuditSummaryDto }) {
               {row.userName ?? row.userId?.slice(0, 8) ?? "system"}
             </span>
             <span aria-hidden>·</span>
-            <span className="tabular-nums">{relativeTime(row.occurredAtUtc)} ago</span>
+            <span className="tabular-nums">
+              {relativeTime(row.occurredAtUtc)} ago
+            </span>
           </div>
         </div>
         <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/row:translate-x-0.5" />
@@ -708,43 +782,49 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
+// The card sits in one cell of a 2-up grid beside a 360px rail, so its width
+// tracks that column, not the viewport: go two-up only when the card itself has
+// room for two 14rem tiles, instead of squeezing two into a sliver.
 function QuickActionsBody() {
   const { user } = useAuth();
   const permissions = user?.permissions ?? [];
   const actions = QUICK_ACTIONS.filter(
-    (a) => isModuleEnabled(a.module) && (!a.perm || permissions.includes(a.perm)),
+    (a) =>
+      isModuleEnabled(a.module) && (!a.perm || permissions.includes(a.perm)),
   );
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      {actions.map((a) => (
-        <Link
-          key={a.to}
-          to={a.to}
-          className={cn(
-            "group/qa flex items-start gap-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3",
-            "transition-colors duration-200 hover:border-[var(--color-border-strong)] hover:bg-[var(--color-accent)]",
-          )}
-        >
-          <span
-            aria-hidden
+    <div className="@container">
+      <div className="grid grid-cols-1 gap-2 @[28.5rem]:grid-cols-2">
+        {actions.map((a) => (
+          <Link
+            key={a.to}
+            to={a.to}
             className={cn(
-              "grid size-8 shrink-0 place-items-center rounded-md",
-              STAT_TONE_BG[a.tone],
+              "group/qa flex items-start gap-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3",
+              "transition-colors duration-200 hover:border-[var(--color-border-strong)] hover:bg-[var(--color-accent)]",
             )}
           >
-            <a.icon className="size-3.5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[12.5px] font-semibold tracking-tight text-foreground">
-              {a.title}
+            <span
+              aria-hidden
+              className={cn(
+                "grid size-8 shrink-0 place-items-center rounded-md",
+                STAT_TONE_BG[a.tone],
+              )}
+            >
+              <a.icon className="size-3.5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[12.5px] font-semibold tracking-tight text-foreground">
+                {a.title}
+              </div>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                {a.description}
+              </p>
             </div>
-            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-              {a.description}
-            </p>
-          </div>
-          <ArrowRight className="size-3 shrink-0 text-muted-foreground opacity-0 transition-all group-hover/qa:translate-x-0.5 group-hover/qa:opacity-100" />
-        </Link>
-      ))}
+            <ArrowRight className="size-3 shrink-0 text-muted-foreground opacity-0 transition-all group-hover/qa:translate-x-0.5 group-hover/qa:opacity-100" />
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
@@ -960,7 +1040,12 @@ function SetupTile({ spec }: { spec: SetupTileSpec }) {
 // ────────────────────────────────────────────────────────────────────────
 
 export function OverviewPage() {
-  const { user } = useAuth();
+  const { user, permissionsHydrated } = useAuth();
+  // GET /audits requires AuditTrails.View — only mount the query for users who
+  // hold it, so everyone else gets a quiet no-access state instead of a 403.
+  const canViewAudits =
+    permissionsHydrated &&
+    (user?.permissions.includes(AUDIT_VIEW_PERMISSION) ?? false);
   const { status: sseStatus, eventCount } = useSseStatus();
   const { events } = useSseEvents();
 
@@ -1001,7 +1086,9 @@ export function OverviewPage() {
   // first-run (no-plan) tenant. Re-checks on tenant change so switching
   // tenants restores the panel.
   const tenantId = user?.tenant;
-  const [dismissed, setDismissed] = useState<boolean>(() => readDismissed(tenantId));
+  const [dismissed, setDismissed] = useState<boolean>(() =>
+    readDismissed(tenantId),
+  );
   useEffect(() => {
     setDismissed(readDismissed(tenantId));
   }, [tenantId]);
@@ -1027,9 +1114,12 @@ export function OverviewPage() {
   }, [rows]);
 
   // 3 billing cards + 1 SSE card; don't leave a 4-column grid holding one tile.
-  const statGridClass = billingEnabled ? "grid-cols-2 md:grid-cols-4" : "grid-cols-1";
+  const statGridClass = billingEnabled
+    ? "grid-cols-2 md:grid-cols-4"
+    : "grid-cols-1";
 
-  const refreshing = usage.isFetching || subscription.isFetching || status.isFetching;
+  const refreshing =
+    usage.isFetching || subscription.isFetching || status.isFetching;
   const onRefresh = () => {
     void usage.refetch();
     void subscription.refetch();
@@ -1054,7 +1144,7 @@ export function OverviewPage() {
   const planValue = subscription.isLoading ? (
     <Skeleton className="h-5 w-16" />
   ) : (
-    subscription.data?.planKey ?? "—"
+    (subscription.data?.planKey ?? "—")
   );
   const planSub = subscription.isError
     ? "Unavailable"
@@ -1091,7 +1181,9 @@ export function OverviewPage() {
       >
         {formatNumber(validity.daysLeft)}
       </span>
-      <span className="text-[12px] font-medium text-muted-foreground">days</span>
+      <span className="text-[12px] font-medium text-muted-foreground">
+        days
+      </span>
     </span>
   );
   const validitySub = status.isLoading
@@ -1115,7 +1207,9 @@ export function OverviewPage() {
   );
   const resourcesSub = (
     <>
-      <span className="tabular-nums">{totalsView.avgUtilization.toFixed(0)}%</span>{" "}
+      <span className="tabular-nums">
+        {totalsView.avgUtilization.toFixed(0)}%
+      </span>{" "}
       avg utilization
       {totalsView.overage > 0 && (
         <>
@@ -1154,8 +1248,15 @@ export function OverviewPage() {
           {/* Only refetches the billing queries, so it has nothing to do
               when that module is hidden. */}
           {billingEnabled ? (
-            <Button variant="outline" size="sm" disabled={refreshing} onClick={onRefresh}>
-              <RefreshCw className={cn("mr-1.5 size-3.5", refreshing && "animate-spin")} />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={refreshing}
+              onClick={onRefresh}
+            >
+              <RefreshCw
+                className={cn("mr-1.5 size-3.5", refreshing && "animate-spin")}
+              />
               Refresh
             </Button>
           ) : null}
@@ -1194,7 +1295,11 @@ export function OverviewPage() {
             />
             <StatCard
               index={1}
-              tone={status.isLoading || status.isError || !status.data ? "success" : validity.tone}
+              tone={
+                status.isLoading || status.isError || !status.data
+                  ? "success"
+                  : validity.tone
+              }
               icon={Calendar}
               label="Valid for"
               value={validityValue}
@@ -1215,7 +1320,9 @@ export function OverviewPage() {
           tone="info"
           icon={Zap}
           label="Live events"
-          value={<span className="tabular-nums">{formatNumber(eventCount)}</span>}
+          value={
+            <span className="tabular-nums">{formatNumber(eventCount)}</span>
+          }
           sublabel={
             <span className="inline-flex items-center gap-1.5">
               <span
@@ -1251,13 +1358,13 @@ export function OverviewPage() {
         {/* Left rail */}
         <aside className="w-full space-y-4 lg:w-[360px] lg:shrink-0">
           {billingEnabled ? (
-              <EntityDetailSection title="Subscription" icon={CreditCard}>
-                <SubscriptionBody
-                  data={subscription.data}
-                  loading={subscription.isLoading}
-                  isError={subscription.isError}
-                />
-              </EntityDetailSection>
+            <EntityDetailSection title="Subscription" icon={CreditCard}>
+              <SubscriptionBody
+                data={subscription.data}
+                loading={subscription.isLoading}
+                isError={subscription.isError}
+              />
+            </EntityDetailSection>
           ) : null}
 
           <EntityDetailSection title="System status" icon={Wifi}>
@@ -1273,15 +1380,23 @@ export function OverviewPage() {
               icon={ScrollText}
               description="Last 24 hours, top 5 events."
               action={
-                <Link
-                  to="/system/audits"
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  See all <ArrowUpRight className="size-3" />
-                </Link>
+                canViewAudits ? (
+                  <Link
+                    to="/system/audits"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    See all <ArrowUpRight className="size-3" />
+                  </Link>
+                ) : undefined
               }
             >
-              <RecentAuditsBody />
+              {!permissionsHydrated ? (
+                <RecentAuditsSkeleton />
+              ) : canViewAudits ? (
+                <RecentAuditsBody />
+              ) : (
+                <RecentAuditsNoAccess />
+              )}
             </EntityDetailSection>
           ) : null}
 
@@ -1291,7 +1406,9 @@ export function OverviewPage() {
               icon={Gauge}
               description="Current-month consumption against plan limits."
               action={
-                totalsView.overage > 0 ? <Badge variant="danger">overage</Badge> : undefined
+                totalsView.overage > 0 ? (
+                  <Badge variant="danger">overage</Badge>
+                ) : undefined
               }
             >
               {usage.isLoading ? (

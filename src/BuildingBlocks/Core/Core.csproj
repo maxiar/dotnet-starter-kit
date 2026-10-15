@@ -7,6 +7,8 @@
 	    <!-- Opt-in framework packaging: inert unless -p:PackFshFramework=true.
 	         Keeps Directory.Build.props's IsPackable=false source-ownership guard intact. -->
 	    <IsPackable Condition="'$(PackFshFramework)' == 'true'">true</IsPackable>
+	    <!-- SharedResources is an intentional empty localizer marker (see Localization/SharedResources.cs). -->
+	    <NoWarn>$(NoWarn);S2094</NoWarn>
     </PropertyGroup>
 
 	<ItemGroup>
