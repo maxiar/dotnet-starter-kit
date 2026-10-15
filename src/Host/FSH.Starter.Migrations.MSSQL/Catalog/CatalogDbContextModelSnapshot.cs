@@ -18,7 +18,7 @@ namespace FSH.Starter.Migrations.MSSQL.Catalog
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("catalog")
-                .HasAnnotation("ProductVersion", "10.0.8")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -250,6 +250,8 @@ namespace FSH.Starter.Migrations.MSSQL.Catalog
                         .HasColumnType("nvarchar(2048)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FileAssetId");
 
                     b.HasIndex("ProductId");
 
