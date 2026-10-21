@@ -182,6 +182,36 @@ keys and the per-app mapping live in `clients/{admin,dashboard}/src/lib/modules.
 `.agents/rules/frontend/shared.md`. For containers, set `FSH_DISABLED_MODULES` (comma-separated)
 instead of editing the file.
 
+### Rebranding the admin wordmark
+
+The template renames namespaces and projects, but the admin UI keeps the hard-coded
+`fullstack`**`hero`** wordmark on the login, auth pages, sidebar, mobile nav and sign-out dialog.
+The house convention is to keep the two-tone style and swap the halves: `fullstack` → `fs`,
+`hero` → the product (`fsproxy`, `fssearch`, …). Run this from the project root after
+scaffolding, replacing `PRODUCT`:
+
+```bash
+cd clients/admin
+PRODUCT=search
+grep -rl "fullstack" index.html src tests | xargs sed -i '' \
+  -e "s|fullstack<span className=\"text-\[var(--color-primary)\]\">hero</span>|fs<span className=\"text-[var(--color-primary)]\">${PRODUCT}</span>|g" \
+  -e "s|accent on \"hero\"|accent on \"${PRODUCT}\"|g" \
+  -e 's|logo-fullstackhero\.png|__LOGO__|g' \
+  -e "s|fullstackhero|fs${PRODUCT}|g" \
+  -e 's|__LOGO__|logo-fullstackhero.png|g'
+```
+
+That touches the same 10 files every time (`index.html`, `brand-mark.tsx`, `sidebar.tsx`,
+`mobile-nav.tsx`, `topbar.tsx`, `login.tsx`, the three `pages/auth/*` pages and
+`tests/auth/login.spec.ts`). The logo **file** `/logo-fullstackhero.png` is deliberately left alone,
+and the remaining "hero" hits (`hero numerals`, `page hero`) are design vocabulary, not branding.
+`sed -i ''` is the macOS spelling; on Linux drop the `''`. The dashboard (`clients/dashboard`) has
+its own copies of the wordmark and is not covered by this.
+
+Verify with `npx playwright test` in `clients/admin`. Mind `reuseExistingServer`: if another
+project's dev server already holds port 5173, Playwright silently tests *that* app and the login
+spec fails for no apparent reason.
+
 ---
 
 ## The everyday loop
