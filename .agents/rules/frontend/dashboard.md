@@ -36,6 +36,7 @@ See `shared.md` for the mechanism. What each key hides in this app:
 | `billing` | Operations → Subscription / Wallet / Invoices | the hero's 3 stat cards, Subscription rail, Usage card, `FirstRunPanel`, Refresh button, and their queries |
 | `catalog` | Catalog (3 items) | — |
 | `tickets` | Helpdesk → Tickets | — |
+| `sessions` | System → Sessions (`/system/sessions`) | ⌘K entry; the page that lists **all** tenant sessions — not the per-user sessions under Settings → Security |
 | `auditing` | System → Audit trail | the "View audits" header button + Recent audits card |
 | `health` | System → Health | — |
 | `multitenancy` | `/settings/branding` tab | — |

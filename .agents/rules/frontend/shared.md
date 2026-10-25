@@ -46,7 +46,7 @@ permission-guarded; nothing is removed, so this is about clutter, not security.
 - **Keys** live in `src/lib/modules.ts`, kept **byte-identical between the two apps** (mirrored the way
   `lib/permissions.ts` mirrors the server registry) so one `FSH_DISABLED_MODULES` configures both
   containers: `activity` `auditing` `billing` `catalog` `chat` `files` `health` `impersonation`
-  `multitenancy` `notifications` `tickets` `webhooks`.
+  `multitenancy` `notifications` `sessions` `tickets` `webhooks`.
   There is deliberately **no `identity` key** — it underpins login, `/settings/*`, `RouteGuard` and the
   chat user picker, so offering it would invite a config that bricks the app. And `files` gates the
   *My Files* page, **not** the upload plumbing (the chat composer keeps working).

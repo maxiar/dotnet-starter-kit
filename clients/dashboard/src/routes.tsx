@@ -236,7 +236,9 @@ export function getRouter() {
             ...anyModuleRoutes(["catalog", "tickets", "files"], [
               { path: "system/trash", element: withSuspense(<TrashPage />) },
             ]),
-            { path: "system/sessions", element: withSuspense(<SessionsPage />) },
+            ...moduleRoutes("sessions", [
+              { path: "system/sessions", element: withSuspense(<SessionsPage />) },
+            ]),
             ...moduleRoutes("files", [
               { path: "files", element: withSuspense(<MyFilesPage />) },
             ]),

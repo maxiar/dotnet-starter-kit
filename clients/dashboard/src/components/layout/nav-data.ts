@@ -192,7 +192,13 @@ export const sections: NavSection[] = [
         perm: "Permissions.AuditTrails.View",
         module: "auditing",
       },
-      { to: "/system/sessions", label: "Sessions", icon: Wifi, perm: "Permissions.Sessions.ViewAll" },
+      {
+        to: "/system/sessions",
+        label: "Sessions",
+        icon: Wifi,
+        perm: "Permissions.Sessions.ViewAll",
+        module: "sessions",
+      },
       // Trash fronts five tabs, each gated on a different resource's restore /
       // view-trash permission. Show the entry if the user can reach any tab; the
       // page hides the individual tabs they can't (see trash-permissions.ts).
