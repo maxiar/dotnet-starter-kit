@@ -265,6 +265,7 @@ export function CommandPaletteDialog({
             keywords: ["devices", "logins"],
             perform: go("/system/sessions"),
             perm: "Permissions.Sessions.ViewAll",
+            module: "sessions",
           },
           {
             id: "nav-settings",

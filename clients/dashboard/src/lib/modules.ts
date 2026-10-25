@@ -35,6 +35,7 @@ export const MODULE_KEYS = [
   "impersonation",
   "multitenancy",
   "notifications",
+  "sessions",
   "tickets",
   "webhooks",
 ] as const;

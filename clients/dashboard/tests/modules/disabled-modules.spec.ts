@@ -46,6 +46,21 @@ async function openSection(scope: Locator, caption: string): Promise<void> {
   if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
 }
 
+/**
+ * Open the command palette once the shell is mounted. Pressing ⌘K before the
+ * AppShell has registered its keyboard handler is silently ignored, which made
+ * the palette tests flaky.
+ */
+async function openPalette(page: Page): Promise<Locator> {
+  await expect(sidebar(page)).toBeVisible();
+  const dialog = page.getByRole("dialog");
+  await expect(async () => {
+    await page.keyboard.press("ControlOrMeta+k");
+    await expect(dialog).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  return dialog;
+}
+
 test.beforeEach(async ({ page }) => {
   await installShellMocks(page);
   await mockJsonResponse(page, "**/api/v1/identity/permissions", ALL_PERMS);
@@ -126,6 +141,37 @@ test.describe("disabledModules — hiding", () => {
   });
 });
 
+test.describe("disabledModules — sessions", () => {
+  test("sessions module disabled hides System → Sessions, its route and ⌘K entry", async ({ page }) => {
+    await withDisabledModules(page, ["sessions"]);
+    await seedAuthedSession(page, TEST_USER);
+    await page.goto("/");
+
+    const nav = sidebar(page);
+    await openSection(nav, "System");
+    await expect(nav.getByRole("link", { name: "Sessions" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Health" })).toBeVisible();
+
+    await page.goto("/system/sessions");
+    await expect(page.getByText(/not found/i).first()).toBeVisible();
+
+    await page.goto("/");
+    const dialog = await openPalette(page);
+    await dialog.getByPlaceholder("Type a command or search…").fill("Active user sessions");
+    await expect(dialog.getByText("Active user sessions")).toHaveCount(0);
+  });
+
+  test("hiding every module it holds drops the whole System section", async ({ page }) => {
+    await withDisabledModules(page, ["health", "auditing", "sessions", "catalog", "tickets", "files"]);
+    await seedAuthedSession(page, TEST_USER);
+    await page.goto("/");
+
+    const nav = sidebar(page);
+    await expect(nav.getByRole("button", { name: "System" })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: "Identity" })).toBeVisible();
+  });
+});
+
 test.describe("disabledModules — anyModule (Trash)", () => {
   test("Trash survives while one of its modules is still enabled", async ({ page }) => {
     await withDisabledModules(page, ["catalog"]);
@@ -177,9 +223,7 @@ test.describe("disabledModules — command palette", () => {
     await seedAuthedSession(page, TEST_USER);
     await page.goto("/");
 
-    await page.keyboard.press("ControlOrMeta+k");
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
+    const dialog = await openPalette(page);
 
     await dialog.getByPlaceholder("Type a command or search…").fill("product");
     // "Browse products" (Navigate) and "New product" (Create) both belong to
@@ -192,9 +236,7 @@ test.describe("disabledModules — command palette", () => {
     await seedAuthedSession(page, TEST_USER);
     await page.goto("/");
 
-    await page.keyboard.press("ControlOrMeta+k");
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
+    const dialog = await openPalette(page);
     await dialog.getByPlaceholder("Type a command or search…").fill("product");
     await expect(dialog.getByText(/product/i).first()).toBeVisible();
   });
