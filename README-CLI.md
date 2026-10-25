@@ -264,6 +264,50 @@ It switches on automatically when `src/BuildingBlocks` is **absent** — which i
 of a project scaffolded with `--framework-packages`. Nothing to remember, and it cannot fall out
 of sync with how the project was created. Force it either way with `-p:UseFrameworkPackages=true|false`.
 
+### Sharing a project between Windows and macOS
+
+`fsh new` writes the feed into `NuGet.config` as an **absolute path** — whatever
+`--framework-feed` / `FSH_LOCAL_FEED` was on the machine that scaffolded it. That works until the
+repo is cloned on another OS: a `D:/nuget-local` written on Windows fails on macOS (and
+`/Users/you/dev/nuget-local` fails on Windows) with `NU1301: The local source ... doesn't exist`,
+and `NuGet.config` has no way to say "this path on Windows, that one elsewhere".
+
+The house fix moves the local feed out of `NuGet.config` and into MSBuild, which *can* branch on
+the OS. Do it once per project after scaffolding:
+
+```xml
+<!-- NuGet.config: drop the fsh-local line, keep nuget.org -->
+<add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+<!-- The local FSH.Framework.* feed is added per-OS in src/Directory.Build.props
+     (RestoreAdditionalProjectSources), not here: NuGet.config has no OS conditions. -->
+```
+
+```xml
+<!-- src/Directory.Build.props, just before the "Local-feed profile" block -->
+<PropertyGroup>
+  <FshLocalFeed Condition="'$(FshLocalFeed)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">D:/nuget-local</FshLocalFeed>
+  <FshLocalFeed Condition="'$(FshLocalFeed)' == '' and !$([MSBuild]::IsOSPlatform('Windows'))">$(HOME)/dev/nuget-local</FshLocalFeed>
+  <RestoreAdditionalProjectSources Condition="Exists('$(FshLocalFeed)')">$(RestoreAdditionalProjectSources);$(FshLocalFeed)</RestoreAdditionalProjectSources>
+</PropertyGroup>
+```
+
+- The defaults are the team's conventions: `D:/nuget-local` on Windows and `~/dev/nuget-local`
+  elsewhere. A machine that keeps the feed somewhere else sets the **`FshLocalFeed`** environment
+  variable. MSBuild reads that one, which is a different variable from the CLI's
+  `FSH_LOCAL_FEED`.
+- The source is only added when the folder **exists**, so a machine without a feed still restores
+  everything from nuget.org (no NU1301). It fails only if it actually needs an `FSH.Framework.*`
+  package, which then shows up as `NU1101`.
+- `fsh upgrade` leaves the edit alone. It carries `NuGet.config` forward from the baseline, so your
+  version wins the merge, and the `Directory.Build.props` block is an addition the template
+  never touches.
+- `fsh framework swap --to packages` **rewrites `NuGet.config` wholesale** with an absolute
+  `fsh-local` line, so delete that line again after swapping. `--to source` leaves the edited
+  file alone, because it only deletes a `NuGet.config` that still names `fsh-local`. The props block
+  can stay: with the kernel as source, nothing asks the feed for a package.
+
+Applied in `fs-ai-smartsearch` (`0d89f874`), `fs-proxy`, `fs-security` and `fs-search`.
+
 ---
 
 ## Scaffolding from your own fork
@@ -372,6 +416,7 @@ That produces a normal DLL plus a `.snupkg` with SourceLink, which is what nuget
 |---|---|---|
 | Kernel changes don't show up in the consuming project | the same version was restored from the NuGet cache | `fsh framework pack --push --clear-cache`, and make sure the project pins the new version |
 | `NU1101: Unable to find package FSH.Framework.Core` | feed not registered, or `NuGet.config` points elsewhere | `fsh framework pack --register-source`; check `NuGet.config` in the project root |
+| `NU1301: The local source ... doesn't exist` after cloning on another OS | `NuGet.config` holds the absolute feed path of the machine that scaffolded the project | move the feed to `src/Directory.Build.props` — see [Sharing a project between Windows and macOS](#sharing-a-project-between-windows-and-macos) |
 | `NU1103: no stable version found` | local packages are prereleases | pin `FshFrameworkVersion` explicitly, or pack with `--profile public` and a stable `--version` |
 | F11 steps over framework code | Just My Code is enabled | see [above](#you-must-turn-off-just-my-code) |
 | `fsh new` keeps scaffolding the old template | the installed template is sticky and never auto-upgrades | `--refresh-template`, or `--template-path`, or `fsh update` |
