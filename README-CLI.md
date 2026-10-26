@@ -12,7 +12,7 @@ This is the maintainer guide for three opt-in capabilities of the `fsh` CLI:
 
 **Contents** — [Why](#why-framework-packages) · [Setup](#one-time-setup) · [Install `fsh`](#installing-fsh-from-this-source) · [Daily loop](#the-everyday-loop) ·
 [Fork scaffolding](#scaffolding-from-your-own-fork) · [Agents](#shipping-the-agents-kit) ·
-[Debugging](#debugging-into-buildingblocks) · [Migrations](#running-database-migrations-on-deployed-environments) · [Troubleshooting](#troubleshooting) ·
+[Debugging](#debugging-into-buildingblocks) · [Migrations](#running-database-migrations-on-deployed-environments) · [Projects](#projects-built-from-this-template) · [Troubleshooting](#troubleshooting) ·
 [Reference](#command-reference) · [Upgrading](#updating-an-existing-project-to-a-newer-template) · [Runbook](#runbook-upgrading-a-project-end-to-end) · [Swapping modes](#swapping-an-existing-project-between-the-two-modes)
 
 ---
@@ -211,6 +211,26 @@ its own copies of the wordmark and is not covered by this.
 Verify with `npx playwright test` in `clients/admin`. Mind `reuseExistingServer`: if another
 project's dev server already holds port 5173, Playwright silently tests *that* app and the login
 spec fails for no apparent reason.
+
+### Isolating the project on a shared Redis
+
+`CachingOptions:KeyPrefix` namespaces everything the framework writes to Redis. That covers cache
+entries and tag invalidations, the Data Protection key ring, idempotency locks, quota counters and
+the SignalR backplane channel. A new scaffold ships `<Project>` in `appsettings.json` and
+`<Project>:prod` in `appsettings.Production.json`. Add `<Project>:qa` to `appsettings.QA.json`
+yourself:
+
+```jsonc
+"CachingOptions": {
+  "Redis": "10.0.1.4:6379,password=...,defaultDatabase=1",
+  "KeyPrefix": "FS.Search:qa"
+}
+```
+
+A `defaultDatabase` index alone is not enough. It separates keys, but the SignalR backplane is
+Redis pub/sub, which is server-wide. Without distinct prefixes, every app on the server receives
+the others' `tenant:root` broadcasts. Changing a prefix on a running deployment starts a cold
+cache and, when Data Protection keys live in Redis, logs users out once.
 
 ---
 
@@ -450,6 +470,45 @@ has created the database on the first `apply`. When the machine cannot reach the
 (`dotnet publish src/Host/<App>.DbMigrator -c Release -r win-x64 --self-contained false`), copy it to a server
 that can, remove the other environments' `appsettings.*.json` from the output, and run
 `DOTNET_ENVIRONMENT=<Env> <App>.DbMigrator apply --seed` there.
+
+---
+
+## Projects built from this template
+
+The projects below were scaffolded from this fork with `fsh new`. When the kernel or the template
+changes, propagate the change to every one of them. Keep this table current: add a row on every
+`fsh new`, and update the version column whenever a project moves to a new kernel.
+
+All of them run in **framework-packages mode** with the `.agents` kit, consume the local feed
+through the per-OS block in `src/Directory.Build.props`
+([Windows and macOS](#sharing-a-project-between-windows-and-macos)), and live in
+`~/dev/falconsoft/<folder>`.
+
+| Project | Folder · repo | Scaffold commit | DB | `CachingOptions:KeyPrefix` (base · QA · Prod) | Framework | Notes |
+|---|---|---|---|---|---|---|
+| FS.Proxy | `fs-proxy` · `eduardojimenez-fst/fs-proxy` | `9c2a865` (2026-09-01) | MSSQL | `FS.Proxy` · `FS.Proxy:qa` · `FS.Proxy:prod` | `20261026T160747` | admin + dashboard; wordmark `fsproxy`; hides billing, webhooks, health, auditing, multitenancy; template upgraded 2026-10-15 |
+| FS.Security | `fs-security` · `eduardojimenez-fst/fs-security` | `dc4b208` (2026-10-15) | MSSQL | `FS.Security` · — · `FS.Security:prod` | `20261026T160747` | Keycloak; own admin, no dashboard; no QA settings file; feature work lives on long-running `design/*` branches, so land kernel bumps on `main` |
+| FS.AI.SmartSearch | `fs-ai-smartsearch` · `falconsoft-org/fs-ai-smartsearch` | `36d2f4c` (2026-10-19) | PostgreSQL | `FS.AI.SmartSearch` · `…:qa` · `…:prod` | `20261026T160747` | API only, no clients; Data Protection keys in Redis, so changing its prefix logs users out once |
+| FS.Search | `fs-search` · `falconsoft-org/fs-search` | `c766589` (2026-10-21) | MSSQL | `FS.Search` · `FS.Search:qa` · `FS.Search:prod` | `20261026T160747` | admin + dashboard; wordmark `fssearch`; hides billing, webhooks, health, auditing; `ProductionConfigTests` guards the committed QA/Production settings |
+
+**Not on this template:** the `fs-framework` monorepo (`eduardojimenez-fst/fs-framework`, branch
+`falconsoft`) hosts FS.Workflow, FS.AI and FS.FileStorage. It is built on an **earlier FSH
+generation**, with `src/BuildingBlocks` as source and no CLI scaffold commit. Neither
+`fsh upgrade` nor the `FSH.Framework.*` packages reach it, so kernel fixes have to be ported there
+by hand. Its caching building block is different, too: it already has its own
+`CachingOptions.KeyPrefix`, which defaults to `fsh_`.
+
+All of these apps share one Redis server (`10.0.1.4`). That is why every row carries its own
+`KeyPrefix` per environment. Keep the pattern `<Project>[:qa|:prod]` for new projects.
+
+### Propagating a change
+
+| You changed… | Reach the projects with |
+|---|---|
+| `src/BuildingBlocks` (kernel) | `fsh framework pack --push --clear-cache`, then bump `FshFrameworkVersion` in each project's `src/Directory.Packages.props`, build with `-warnaserror` and run its tests. Update the Framework column above. |
+| Anything else the template generates (modules, hosts, tests, `.agents`, clients, deploy) | `fsh upgrade` in each project ([runbook](#runbook-upgrading-a-project-end-to-end)). |
+| A house convention applied after scaffolding (hidden modules, wordmark, per-OS feed, `KeyPrefix`) | By hand, project by project, following the section that documents it. A new project also gets it right after `fsh new`. |
+| The `fs-framework` monorepo | Port the change by hand; its kernel is an earlier generation. |
 
 ---
 
