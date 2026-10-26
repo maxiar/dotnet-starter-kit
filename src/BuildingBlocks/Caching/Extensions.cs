@@ -1,3 +1,4 @@
+using FSH.Framework.Core.Common;
 using FSH.Framework.Core.DataProtection;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -53,10 +54,16 @@ public static class Extensions
             var sharedMultiplexer = ConnectionMultiplexer.Connect(redisConfig);
             services.AddSingleton<IConnectionMultiplexer>(sharedMultiplexer);
 
+            // Every key below lives under the application's prefix, so applications (and environments)
+            // sharing one Redis server never read each other's entries. InstanceName covers all of
+            // HybridCache's L2 traffic, including its tag-invalidation records.
+            string keyPrefix = RedisKeyPrefix.Normalize(cacheOptions.KeyPrefix);
+
             services.AddStackExchangeRedisCache(options =>
             {
                 options.ConnectionMultiplexerFactory = () =>
                     Task.FromResult<IConnectionMultiplexer>(sharedMultiplexer);
+                options.InstanceName = keyPrefix;
             });
 
             // Persist Data Protection keys (auth cookies, reset/confirmation tokens, antiforgery) to
@@ -75,7 +82,7 @@ public static class Extensions
             if (!DataProtectionStores.UsesDatabase(configuration[DataProtectionStores.ConfigurationKey]))
             {
                 services.AddDataProtection()
-                    .PersistKeysToStackExchangeRedis(sharedMultiplexer, "DataProtection-Keys")
+                    .PersistKeysToStackExchangeRedis(sharedMultiplexer, keyPrefix + "DataProtection-Keys")
                     .SetApplicationName(DataProtectionApplicationName.Resolve(configuration[DataProtectionApplicationName.ConfigurationKey]));
             }
         }
