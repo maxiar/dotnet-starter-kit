@@ -12,7 +12,7 @@ This is the maintainer guide for three opt-in capabilities of the `fsh` CLI:
 
 **Contents** — [Why](#why-framework-packages) · [Setup](#one-time-setup) · [Install `fsh`](#installing-fsh-from-this-source) · [Daily loop](#the-everyday-loop) ·
 [Fork scaffolding](#scaffolding-from-your-own-fork) · [Agents](#shipping-the-agents-kit) ·
-[Debugging](#debugging-into-buildingblocks) · [Troubleshooting](#troubleshooting) ·
+[Debugging](#debugging-into-buildingblocks) · [Migrations](#running-database-migrations-on-deployed-environments) · [Troubleshooting](#troubleshooting) ·
 [Reference](#command-reference) · [Upgrading](#updating-an-existing-project-to-a-newer-template) · [Runbook](#runbook-upgrading-a-project-end-to-end) · [Swapping modes](#swapping-an-existing-project-between-the-two-modes)
 
 ---
@@ -407,6 +407,49 @@ fsh framework pack --profile public --version 10.1.0
 ```
 
 That produces a normal DLL plus a `.snupkg` with SourceLink, which is what nuget.org expects.
+
+## Running database migrations on deployed environments
+
+The API never migrates the database at startup; `<App>.DbMigrator` does it as a separate step. Every generated
+project ships **`deploy/scripts/db-migrate.ps1`**, which runs that migrator from your own machine against
+Development, QA or Production with the right settings and guard rails. It finds `src/Host/*.DbMigrator` and
+`src/Host/*.Api` by itself, so it works unchanged after `fsh new` renames the projects.
+
+```powershell
+./deploy/scripts/db-migrate.ps1 -Environment QA -DryRun                 # target server/database + command, nothing run
+./deploy/scripts/db-migrate.ps1 -Environment QA -Command list-pending   # report only, no confirmation
+./deploy/scripts/db-migrate.ps1 -Environment QA -Seed                   # migrate + seed; asks you to type QA
+./deploy/scripts/db-migrate.ps1 -Environment Production -Seed           # always asks you to type PRODUCTION
+./deploy/scripts/db-migrate.ps1 -Environment Development -ConnectionString 'Server=localhost;...' -Seed
+```
+
+| Parameter | Meaning |
+|---|---|
+| `-Environment` | `Development`, `QA` or `Production`; sets `DOTNET_ENVIRONMENT`, so the migrator reads `appsettings.json` + `appsettings.<Env>.json` of the API |
+| `-Command` | `apply` (default), `list-pending`, `seed`, `seed-demo` (Development only) |
+| `-Seed` | with `apply`: seed the root tenant, its admin and permissions after migrating |
+| `-Tenant` / `-CatalogOnly` | limit to one tenant / only the tenant catalog database |
+| `-ConnectionString` / `-Provider` | Development only: use this connection (`MSSQL` default, or `POSTGRESQL`) instead of the settings files |
+| `-Force` | QA only: skip the confirmation; Production always asks |
+| `-DryRun` | print the target and the migrator command without running anything |
+
+What it guards against:
+
+- **The wrong database.** QA and Production read `DatabaseOptions` only from `appsettings.<Env>.json` — never the
+  `appsettings.json` defaults (which point at localhost) — and fail if it is missing. `DatabaseOptions__*` variables
+  are cleared for the migrator process, so a value left in your shell by a local run cannot redirect a deployed one.
+- **Secrets on disk.** If the connection string still contains the `__SET_BEFORE_DEPLOY__` placeholder, the script
+  asks for the SQL password and passes the completed string to the migrator process only. No file is changed and
+  your shell environment is restored afterwards.
+- **Accidental runs.** Anything other than `list-pending` asks you to type the environment name (QA can skip it with
+  `-Force`, Production cannot).
+
+Requirements: PowerShell 7, the .NET SDK, and network access to the environment's SQL Server (typically a VPN,
+since the database hosts are internal). On a brand-new database run `apply` directly: `list-pending` fails until EF
+has created the database on the first `apply`. When the machine cannot reach the database, publish the migrator
+(`dotnet publish src/Host/<App>.DbMigrator -c Release -r win-x64 --self-contained false`), copy it to a server
+that can, remove the other environments' `appsettings.*.json` from the output, and run
+`DOTNET_ENVIRONMENT=<Env> <App>.DbMigrator apply --seed` there.
 
 ---
 
