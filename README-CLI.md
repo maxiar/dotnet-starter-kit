@@ -496,7 +496,15 @@ through the per-OS block in `src/Directory.Build.props`
 generation**, with `src/BuildingBlocks` as source and no CLI scaffold commit. Neither
 `fsh upgrade` nor the `FSH.Framework.*` packages reach it, so kernel fixes have to be ported there
 by hand. Its caching building block is different, too: it already has its own
-`CachingOptions.KeyPrefix`, which defaults to `fsh_`.
+`CachingOptions.KeyPrefix`, which defaults to `fsh_`. That version concatenates the value as-is,
+so the trailing `:` is written explicitly. The monorepo has the per-OS local feed
+(`95c6d9a0`), and each host has its own prefix (`0e432f92`):
+
+| Host | `CachingOptions:KeyPrefix` (base · QA · Prod) |
+|---|---|
+| FS.Workflow.Api | `FS.Workflow:` · `FS.Workflow:qa:` · `FS.Workflow:prod:` |
+| FS.AI.Api | `FS.AI:` · `FS.AI:qa:` · `FS.AI:prod:` |
+| FS.FileStorage.Api | `FS.FileStorage:` · `FS.FileStorage:qa:` · `FS.FileStorage:prod:` |
 
 All of these apps share one Redis server (`10.0.1.4`). That is why every row carries its own
 `KeyPrefix` per environment. Keep the pattern `<Project>[:qa|:prod]` for new projects.
