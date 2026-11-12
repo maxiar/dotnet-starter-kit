@@ -56,7 +56,7 @@ upstream change.
 | **Framework packages** | `src/Directory.Build.targets` reference rewrite, `FSH.Framework.*` pins in `Directory.Packages.props`, `[KernelSourceOnlyFact]` | Lets projects consume BuildingBlocks from a NuGet feed. |
 | **Per-project Data Protection** | `DataProtection:ApplicationName` / `DataProtection:Store` (Redis or database key ring) | Upstream hard-codes `FSH.Starter`; closed upstream PR #1376. |
 | **Hidable UI modules** | `disabledModules` in both React apps (`src/lib/modules.ts`, `env.ts`, `config.json`, nav, routes, cards), `FSH_DISABLED_MODULES` in Docker/Terraform | Upstream does not have it. Re-apply the `module`/`anyModule` tags on every nav item, route and card upstream rewrites. |
-| **Redis key prefix** | `CachingOptions:KeyPrefix` | Proposed upstream as PR #1450; drop the fork copy once it lands. |
+| **Redis key prefix** | `CachingOptions:KeyPrefix` | Proposed upstream as PR #1450 (+ fullstackhero/docs#284). Upstream ships it **empty** (opt-in); the fork keeps the per-project default (`<Project>` / `<Project>:prod`) in `appsettings*.json`, the `FSH.Starter:prod` default in `docker-compose.yml`, and `Environments_Should_ShipDistinctRedisKeyPrefixes`. When #1450 lands, take upstream's code and keep those three. |
 | **`db-migrate.ps1`** | `deploy/scripts/db-migrate.ps1` | Runs the DbMigrator against deployed environments. |
 | **Docs** | `README-CLI.md`, `README-fork.md`, MSSQL notes in `AGENTS.md` and `.agents/` | |
 
@@ -93,6 +93,7 @@ git diff --name-only --diff-filter=U          # the conflict list
 | `clients/*/src/env.ts`, `public/config.json`, `docker/config.json.template`, `docker/docker-entrypoint.sh`, `deploy/docker/docker-compose.yml`, `deploy/terraform/**` | Union: keep upstream's new settings **and** `disabledModules` / `FSH_DISABLED_MODULES`. The entrypoint must still default and `export` `FSH_DISABLED_MODULES`; `envsubst` only substitutes exported variables. |
 | `clients/**` pages, nav, settings tabs, cards | Take upstream's markup (for example its i18n `t()` / `labelKey` text) and re-apply the fork's `module` / `anyModule` tags and `isModuleEnabled(...)` gates. Watch for merged objects that end up with the same key twice (TS1117), such as two `enabled:` on one `useQuery`; combine them with `&&`. |
 | `AGENTS.md`, `.agents/**`, `deploy/docker/README.md` | Upstream's text, plus the fork's MSSQL and hidable-module notes. |
+| `appsettings.json` / `appsettings.Production.json` `CachingOptions:KeyPrefix`, `ShippedConfigurationTests`, `FSH_REDIS_KEY_PREFIX` default in `docker-compose.yml` | Keep the fork's non-empty per-project defaults (upstream ships the prefix empty). |
 
 After resolving: `git grep -n '^<<<<<<<\|^>>>>>>>'` must return nothing.
 

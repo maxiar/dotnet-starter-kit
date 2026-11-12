@@ -35,6 +35,11 @@ public static class Extensions
 
         var cacheOptions = configuration.GetSection(nameof(CachingOptions)).Get<CachingOptions>() ?? new CachingOptions();
 
+        // Every key below lives under the application's prefix, so applications (and environments)
+        // sharing one Redis server never read each other's entries. Normalized here — before the
+        // Redis branch — so an invalid prefix fails at startup even on the in-memory fallback.
+        string keyPrefix = RedisKeyPrefix.Normalize(cacheOptions.KeyPrefix);
+
         // L2: Redis if configured, in-memory distributed cache otherwise. StackExchangeRedis 9.0+
         // implements IBufferDistributedCache, which HybridCache uses for zero-copy reads.
         if (string.IsNullOrEmpty(cacheOptions.Redis))
@@ -54,11 +59,8 @@ public static class Extensions
             var sharedMultiplexer = ConnectionMultiplexer.Connect(redisConfig);
             services.AddSingleton<IConnectionMultiplexer>(sharedMultiplexer);
 
-            // Every key below lives under the application's prefix, so applications (and environments)
-            // sharing one Redis server never read each other's entries. InstanceName covers all of
-            // HybridCache's L2 traffic, including its tag-invalidation records.
-            string keyPrefix = RedisKeyPrefix.Normalize(cacheOptions.KeyPrefix);
-
+            // InstanceName covers all of HybridCache's L2 traffic, including its tag-invalidation
+            // records. An empty prefix keeps InstanceName empty — the historical key layout.
             services.AddStackExchangeRedisCache(options =>
             {
                 options.ConnectionMultiplexerFactory = () =>
@@ -79,6 +81,9 @@ public static class Extensions
             // Skipped when the database store is selected: AddHeroPlatform wires the key ring to
             // DataProtectionKeysDbContext instead. Configuring both would leave the last
             // PersistKeysTo call silently deciding where keys actually land.
+            // The ring lives under the key prefix; a deployment that changes the prefix must copy the
+            // ring first (see RedisKeyPrefix), or every value protected with it — webhook signing
+            // secrets included — can no longer be unprotected.
             if (!DataProtectionStores.UsesDatabase(configuration[DataProtectionStores.ConfigurationKey]))
             {
                 services.AddDataProtection()

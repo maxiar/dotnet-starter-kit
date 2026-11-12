@@ -229,8 +229,21 @@ yourself:
 
 A `defaultDatabase` index alone is not enough. It separates keys, but the SignalR backplane is
 Redis pub/sub, which is server-wide. Without distinct prefixes, every app on the server receives
-the others' `tenant:root` broadcasts. Changing a prefix on a running deployment starts a cold
-cache and, when Data Protection keys live in Redis, logs users out once.
+the others' `tenant:root` broadcasts.
+
+The prefix is validated at startup: whitespace and `{` / `}` (a Redis Cluster hash tag) fail the
+host. Changing a prefix on a running deployment starts a cold cache and, during a rolling deploy,
+splits the SignalR backplane until the rollout finishes. When Data Protection keys live in Redis
+(`DataProtection:Store` = `Redis`), it also moves the key ring, and an empty ring does more than
+log users out: the webhook signing secrets stored DP-protected in the database can never be
+unprotected again. Copy the ring before restarting:
+
+```bash
+redis-cli -h <host> -a <password> COPY "FS.Search:prod:DataProtection-Keys" "FS.Search:prod2:DataProtection-Keys"
+```
+
+Upstream ships the prefix empty (opt-in, PR #1450). This fork keeps the per-project default, so a
+new scaffold is isolated from the first deploy and there is no existing ring to move.
 
 ---
 
