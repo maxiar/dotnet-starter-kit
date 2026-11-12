@@ -18,7 +18,7 @@ public sealed class FrameworkCleanCacheCommand : AsyncCommand<FrameworkCleanCach
         public bool DryRun { get; init; }
     }
 
-    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(settings);
 

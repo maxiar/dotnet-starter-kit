@@ -53,7 +53,7 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
         public bool DryRun { get; init; }
     }
 
-    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(settings);
 

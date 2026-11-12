@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace Integration.Tests.Infrastructure;
@@ -14,7 +15,10 @@ namespace Integration.Tests.Infrastructure;
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class PostgresOnlyFactAttribute : FactAttribute
 {
-    public PostgresOnlyFactAttribute()
+    public PostgresOnlyFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         if (!TestDatabase.SelectedProviderIsPostgres)
         {
@@ -29,7 +33,10 @@ public sealed class PostgresOnlyFactAttribute : FactAttribute
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class SqlServerOnlyFactAttribute : FactAttribute
 {
-    public SqlServerOnlyFactAttribute()
+    public SqlServerOnlyFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         if (TestDatabase.SelectedProviderIsPostgres)
         {
