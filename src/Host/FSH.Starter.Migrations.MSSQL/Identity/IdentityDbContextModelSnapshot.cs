@@ -17,7 +17,7 @@ namespace FSH.Starter.Migrations.MSSQL.Identity
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -67,10 +67,12 @@ namespace FSH.Starter.Migrations.MSSQL.Identity
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("ClaimType")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("ClaimValue")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
@@ -89,7 +91,10 @@ namespace FSH.Starter.Migrations.MSSQL.Identity
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex("RoleId", "ClaimType", "ClaimValue")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RoleClaims_RoleId_ClaimType_ClaimValue")
+                        .HasFilter("[ClaimType] IS NOT NULL AND [ClaimValue] IS NOT NULL");
 
                     b.ToTable("RoleClaims", "identity");
 

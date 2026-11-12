@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -14,11 +15,16 @@ internal static partial class RoleClaimUniqueness
     internal const string IndexName = "IX_RoleClaims_RoleId_ClaimType_ClaimValue";
 
     /// <summary>True when the save failed only because another writer already inserted the same role claim.</summary>
+    /// <remarks>
+    /// SQL Server reports a unique-index violation as error 2601 and names the index only in the
+    /// message, so that is what identifies this index there.
+    /// </remarks>
     internal static bool IsDuplicateRoleClaim(DbUpdateException exception) =>
-        exception.InnerException is PostgresException
+        exception.InnerException switch
         {
-            SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: IndexName,
+            PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: IndexName } => true,
+            SqlException { Number: 2601 or 2627 } sql => sql.Message.Contains(IndexName, StringComparison.Ordinal),
+            _ => false,
         };
 
     [LoggerMessage(
