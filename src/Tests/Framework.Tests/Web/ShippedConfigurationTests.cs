@@ -75,5 +75,9 @@ public sealed class ShippedConfigurationTests
         development.ShouldNotBeNullOrWhiteSpace();
         production.ShouldNotBeNullOrWhiteSpace();
         production.ShouldNotBe(development);
+
+        // And valid: RedisKeyPrefix rejects whitespace and { } at startup.
+        Should.NotThrow(() => FSH.Framework.Core.Common.RedisKeyPrefix.Normalize(development));
+        Should.NotThrow(() => FSH.Framework.Core.Common.RedisKeyPrefix.Normalize(production));
     }
 }
