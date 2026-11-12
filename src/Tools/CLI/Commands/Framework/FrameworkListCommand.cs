@@ -24,7 +24,7 @@ public sealed class FrameworkListCommand : AsyncCommand<FrameworkListCommand.Set
         public bool All { get; init; }
     }
 
-    protected override Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    public override Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(settings);
 

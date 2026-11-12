@@ -58,12 +58,33 @@ public class IdentityDbContext : MultiTenantIdentityDbContext<FshUser,
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(IdentityDbContext).Assembly);
 
+        if (Database.IsSqlServer())
+        {
+            ConfigureSqlServerRoleClaimKeys(builder);
+        }
+
         // The outbox/inbox tables are framework infrastructure, owned by EventingDbContext (issue #1349).
 
         // Default-on tenant isolation: non-IGlobalEntity entities get IsMultiTenant() automatically (ImpersonationGrant opts out).
         // Identity tables are already IsMultiTenant in IdentityConfigurations.cs; auto-apply detects that annotation and skips them.
         builder.ApplyTenantIsolationByDefault();
     }
+
+    /// <summary>
+    /// Keeps the unique index on <c>RoleClaims (RoleId, ClaimType, ClaimValue)</c> legal on SQL Server.
+    /// </summary>
+    /// <remarks>
+    /// Identity maps both claim columns to <c>nvarchar(max)</c>, which SQL Server cannot use as index
+    /// keys. Bounding them keeps the key within SQL Server's 1700-byte limit for a nonclustered index:
+    /// RoleId nvarchar(450) = 900 bytes, ClaimType nvarchar(128) = 256, ClaimValue nvarchar(256) = 512.
+    /// Permission claims are far shorter than either bound. PostgreSQL keeps unbounded text.
+    /// </remarks>
+    private static void ConfigureSqlServerRoleClaimKeys(ModelBuilder builder) =>
+        builder.Entity<FshRoleClaim>(roleClaim =>
+        {
+            roleClaim.Property(rc => rc.ClaimType).HasMaxLength(128);
+            roleClaim.Property(rc => rc.ClaimValue).HasMaxLength(256);
+        });
 
     /// <summary>
     /// This context does not derive from BaseDbContext, so it registers the framework's provider

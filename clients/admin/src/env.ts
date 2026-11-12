@@ -14,6 +14,8 @@ type RuntimeConfig = {
   inactivityWarningMs: number;
   /** Module keys hidden from this app's nav, routes and cross-links. */
   disabledModules: ModuleKey[];
+  /** Per-deployment default UI language (BCP 47); the i18n fallback when nothing is persisted/detected. */
+  defaultLanguage: string;
 };
 
 // Admin defaults: 10 minutes idle, then a 60-second warning.
@@ -89,6 +91,7 @@ export async function loadRuntimeConfig(): Promise<void> {
     inactivityIdleMs: positiveOr(cfg.inactivityIdleMs, DEFAULT_INACTIVITY_IDLE_MS),
     inactivityWarningMs: positiveOr(cfg.inactivityWarningMs, DEFAULT_INACTIVITY_WARNING_MS),
     disabledModules: moduleKeysOr(cfg.disabledModules, []),
+    defaultLanguage: cfg.defaultLanguage ?? "en-US",
   };
 }
 
@@ -108,4 +111,5 @@ export const env = {
   get inactivityIdleMs(): number { return get().inactivityIdleMs; },
   get inactivityWarningMs(): number { return get().inactivityWarningMs; },
   get disabledModules(): ModuleKey[] { return get().disabledModules; },
+  get defaultLanguage(): string { return get().defaultLanguage; },
 };

@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Shouldly;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Architecture.Tests;
 

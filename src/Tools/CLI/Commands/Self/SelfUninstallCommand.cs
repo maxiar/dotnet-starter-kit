@@ -10,7 +10,7 @@ namespace FSH.CLI.Commands.Self;
 /// </summary>
 public sealed class SelfUninstallCommand : AsyncCommand
 {
-    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var result = await ProcessRunner.CaptureWithErrorAsync(
             "dotnet", $"tool uninstall -g {FshConstants.CliPackageId}",

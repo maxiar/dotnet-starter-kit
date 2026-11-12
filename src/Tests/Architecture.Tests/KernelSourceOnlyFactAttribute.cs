@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace Architecture.Tests;
@@ -15,7 +16,10 @@ namespace Architecture.Tests;
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class KernelSourceOnlyFactAttribute : FactAttribute
 {
-    public KernelSourceOnlyFactAttribute()
+    public KernelSourceOnlyFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         if (!Directory.Exists(Path.Combine(ModuleArchitectureTestsFixture.SolutionRoot, "src", "BuildingBlocks")))
         {

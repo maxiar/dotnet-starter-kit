@@ -189,6 +189,7 @@
                 "global.json",
                 "README-CLI.md",
                 "README.md",
+                "RELEASE-NOTES-*.md",
                 "LICENSE"
             ],
             "rename": {
