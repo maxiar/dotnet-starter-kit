@@ -10,6 +10,7 @@ using FSH.Modules.Identity.Data;
 using FSH.Modules.Identity.Domain;
 using Integration.Tests.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -251,9 +252,19 @@ public sealed class RolePermissionSyncerTests
             var ex = await Should.ThrowAsync<DbUpdateException>(
                 () => SeedClaimAsync(rootTenant, roleName, ClaimConstants.Permission, RetiredPermission));
 
-            var pg = ex.InnerException.ShouldBeOfType<PostgresException>();
-            pg.SqlState.ShouldBe(PostgresErrorCodes.UniqueViolation);
-            pg.ConstraintName.ShouldBe("IX_RoleClaims_RoleId_ClaimType_ClaimValue");
+            if (TestDatabase.SelectedProviderIsPostgres)
+            {
+                var pg = ex.InnerException.ShouldBeOfType<PostgresException>();
+                pg.SqlState.ShouldBe(PostgresErrorCodes.UniqueViolation);
+                pg.ConstraintName.ShouldBe("IX_RoleClaims_RoleId_ClaimType_ClaimValue");
+            }
+            else
+            {
+                // SQL Server reports a unique-index violation as 2601 and names the index in the message.
+                var sql = ex.InnerException.ShouldBeOfType<SqlException>();
+                sql.Number.ShouldBe(2601);
+                sql.Message.ShouldContain("IX_RoleClaims_RoleId_ClaimType_ClaimValue");
+            }
 
             var count = await CountClaimRowsAsync(rootTenant, roleName, RetiredPermission);
             count.ShouldBe(1, "The database must hold one row per grant.");
