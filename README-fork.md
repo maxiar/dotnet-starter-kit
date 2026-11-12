@@ -185,4 +185,4 @@ Append a row per sync.
 | Date | Upstream commit | Sync PR | Notes |
 |---|---|---|---|
 | 2026-10-15 | `a9675375` | #9 | 34 commits, 20 conflicts. MSSQL migrations for `ProductImageFileAssetIdIndex`, `FileAssetLegacyKeyIndex`, `AddUserLocale`. |
-| 2026-11-12 | `8f211c24` | (this sync) | 24 commits, 23 conflicts (React i18n vs `disabledModules`). .NET 10.0.15 / Aspire 13.6.5 for CVE-2026-114147 and CVE-2026-120006. MSSQL `AddRoleClaimsUniqueIndex`. Fork code adapted to xUnit v3 and Spectre.Console. `main` mirror branch introduced. |
+| 2026-11-12 | `8f211c24` | #14 | 24 commits, 23 conflicts (React i18n vs `disabledModules`). .NET 10.0.15 / Aspire 13.6.5 for CVE-2026-114147 and CVE-2026-120006. MSSQL `AddRoleClaimsUniqueIndex`. Fork code adapted to xUnit v3 and Spectre.Console. `main` mirror branch introduced. |
