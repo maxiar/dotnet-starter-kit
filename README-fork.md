@@ -167,6 +167,24 @@ GH_TOKEN=$(gh auth token -u maxiar) gh pr create -R fullstackhero/dotnet-starter
 - Upstream's `main` may itself fail restore on a fresh advisory. Say so in the PR and build with
   `-p:NuGetAudit=false` to verify only the change.
 
+### Security fixes go through private reporting, not a PR
+
+Upstream's `SECURITY.md` asks for vulnerabilities to be reported **privately**, never in a public
+issue or PR. Report one through GitHub's private vulnerability reporting
+(`https://github.com/fullstackhero/dotnet-starter-kit/security/advisories/new`, or
+`gh api -X POST repos/fullstackhero/dotnet-starter-kit/security-advisories/reports`). Push the
+`*-upstream` branch with the patch and offer it in the report. Open the PR only once the
+maintainers say how they want it delivered. Bumps for advisories that are already public (a NuGet
+CVE, say) are not covered by this and go as ordinary PRs.
+
+Keep in mind that `develop` is public too. A security fix merged there is already visible, so
+report upstream **before** or at the same time as that merge.
+
+| Date | Report | Patch branch | Status |
+|---|---|---|---|
+| 2026-11-12 | GHSA-qpqm-m27g-r34g: file deletion / path traversal through profile image and brand asset URLs, `LocalStorageService`, client Content-Type | `fix/storage-upload-hardening-upstream` | triage |
+| 2026-11-12 | public PR #1470: .NET 10.0.15 / Aspire 13.6.5 (CVE-2026-114147, CVE-2026-120006) | `fix/cve-2026-114147-120006-upstream` | open |
+
 ## Pitfalls
 
 | Symptom | Cause | Fix |

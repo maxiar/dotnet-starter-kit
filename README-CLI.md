@@ -509,6 +509,37 @@ so the trailing `:` is written explicitly. The monorepo has the per-OS local fee
 All of these apps share one Redis server (`10.0.1.4`). That is why every row carries its own
 `KeyPrefix` per environment. Keep the pattern `<Project>[:qa|:prod]` for new projects.
 
+### How far each project has drifted from the template
+
+Read this before running `fsh upgrade` on one of these projects. Each row lists the structural
+departures from the template. These are where the upgrade merge conflicts, and they are the
+template changes you must **not** take. "Removed" means deleted from the tree. "Hidden" means
+still compiled, registered and migrated, only kept out of the UI by `disabledModules`.
+
+| Project | Backend modules | Front-ends | Other departures | Upgrade strategy |
+|---|---|---|---|---|
+| FS.Proxy | all template modules + **Proxies** | admin + dashboard; both hide billing, webhooks, health, auditing, multitenancy | `src/Clients/FS.Proxy.Client` (NuGet client library) + `Proxy.Client.Tests`; wordmark `fsproxy` | `fsh upgrade --merge`. Conflicts cluster in `nav-data`, permission catalog, locales and the Proxies admin pages |
+| FS.Security | **only** Auditing, Identity, Multitenancy + **IdentityAdmin**. Billing, Catalog, Chat, Files, Notifications, Tickets, Webhooks **removed** | admin only (**dashboard removed**), rewritten: Keycloak sign-in, own permission map and nav, Spanish shell | Identity rewritten on **Keycloak** (template user/role/group/session/2FA/impersonation store and token issuance removed). **SQL Server only** (no `Migrations.PostgreSQL`). No AWS/dokploy/terraform deploy. Adds `src/Packages/FS.Security.Client` + `clients/packages/fs-security-client`, `Keycloak.Tests`, `FS.Security.TestSupport`, `FS.Security.ProvisioningFake` | **Do not run `fsh upgrade`** (2026-11-12: 411 conflicts). Bump `FshFrameworkVersion` and the package pins, and port relevant template fixes by hand |
+| FS.AI.SmartSearch | template modules still in source, but `Program.cs` loads **only** Identity, Multitenancy, Auditing + **AI.SmartSearch** | **none** (API only, no `clients/`, no AppHost) | Integration tests for the unloaded modules (Billing, Catalog, …) **removed** | `fsh upgrade --merge`. Keep the 4-module `moduleAssemblies` and keep the deleted tests deleted. `clients/` and the AppHost must not come back |
+| FS.Search | all template modules + **Search** | admin + dashboard. admin hides billing, webhooks, health, auditing. The dashboard additionally hides multitenancy, activity, catalog, chat, files, sessions, tickets | `src/Tools/TenderHistoryEval` + `TenderHistoryEval.Tests`. Committed QA/Production settings guarded by `ProductionConfigTests`. Wordmark `fssearch` | `fsh upgrade --merge`. Conflicts cluster in dashboard `nav-data`, Search pages and locales |
+
+Recurring conflict points, whatever the project:
+
+- **Front-end i18n.** Since 2026-11 the template uses typed keys (`labelKey`, `ParseKeys<"ns">`),
+  and the `i18next/no-literal-string` lint rule rejects hard-coded text. The project's own screens
+  keep their strings in their **own** namespace files, under `src/locales/<lang>/<ns>.json`, so
+  upgrades do not touch them.
+- **Locale wordmark.** After an upgrade, re-run the wordmark `sed` from
+  [Rebranding the admin wordmark](#rebranding-the-admin-wordmark), since upstream ships new
+  `fullstackhero` strings in the locales.
+- **Test framework.** The template is on **xUnit v3** (`xunit.v3.mtp-off`, `OutputType Exe`,
+  `ValueTask` in `IAsyncLifetime`, no `Xunit.Abstractions`), so the project's own test projects
+  have to follow.
+- **Validator signatures.** `PagedQueryValidator` now takes an `IStringLocalizer<SharedResources>`.
+  `CustomException.MessageKey` is read-only, so use `.Localized("Key")`.
+- **Pinned packages.** Keep the project-only packages in `Directory.Packages.props`, and take the
+  template's versions for everything else.
+
 ### Propagating a change
 
 | You changed… | Reach the projects with |
