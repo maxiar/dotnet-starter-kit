@@ -120,7 +120,7 @@ public sealed class TestDatabase
         }
 
         return new TestDatabase(
-            new PostgreSqlBuilder("postgres:17-alpine")
+            new PostgreSqlBuilder("postgres:18-alpine")
                 .WithDatabase(databaseName)
                 .WithUsername("postgres")
                 .WithPassword("integration_test_pwd")

@@ -219,9 +219,10 @@ module "dashboard_site" {
   response_headers_policy_id = var.frontend_response_headers_policy_id
 
   runtime_config = {
-    apiBase       = local.api_origin
-    defaultTenant = var.frontend_default_tenant
-    demoMode      = var.dashboard_demo_mode
+    apiBase         = local.api_origin
+    defaultTenant   = var.frontend_default_tenant
+    demoMode        = var.dashboard_demo_mode
+    defaultLanguage = var.frontend_default_language
     # UI modules hidden from the tenant app. A real JSON array here (the
     # module jsonencodes runtime_config); the Docker path uses the
     # comma-separated string form instead. Empty hides nothing.
@@ -248,7 +249,8 @@ module "admin_site" {
     apiBase       = local.api_origin
     defaultTenant = var.frontend_default_tenant
     # The admin app links to the tenant dashboard for the impersonation handoff.
-    dashboardUrl = local.dashboard_url
+    dashboardUrl    = local.dashboard_url
+    defaultLanguage = var.frontend_default_language
     # UI modules hidden from the operator console. Empty hides nothing.
     disabledModules = var.admin_disabled_modules
   }

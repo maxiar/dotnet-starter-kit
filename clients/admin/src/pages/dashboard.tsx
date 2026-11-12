@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import type { ParseKeys } from "i18next";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -13,6 +15,7 @@ import { listInvoices, getPlans } from "@/api/billing";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EntityPageHeader, Stat, StatStrip, ToneIconTile, type ToneIconTileTone } from "@/components/list";
 import { useAuth } from "@/auth/use-auth";
+import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { isModuleEnabled, type ModuleKey } from "@/lib/modules";
 
@@ -25,8 +28,8 @@ type Pivot = {
   to: string;
   icon: typeof Building2;
   tone: ToneIconTileTone;
-  title: string;
-  description: string;
+  titleKey: ParseKeys<"dashboard">;
+  descriptionKey: ParseKeys<"dashboard">;
   module?: ModuleKey;
 };
 
@@ -35,31 +38,31 @@ const PIVOTS: Pivot[] = [
     to: "/tenants",
     icon: Building2,
     tone: "info",
-    title: "Tenants",
-    description: "Provision, suspend, and inspect tenants.",
+    titleKey: "pivot.tenants.title",
+    descriptionKey: "pivot.tenants.description",
     module: "multitenancy",
   },
   {
     to: "/users",
     icon: UsersRound,
     tone: "primary",
-    title: "Users",
-    description: "Root-tenant operators and role management.",
+    titleKey: "pivot.users.title",
+    descriptionKey: "pivot.users.description",
   },
   {
     to: "/billing/plans",
     icon: Receipt,
     tone: "success",
-    title: "Billing",
-    description: "Plans, subscriptions, invoices and pricing.",
+    titleKey: "pivot.billing.title",
+    descriptionKey: "pivot.billing.description",
     module: "billing",
   },
   {
     to: "/billing/invoices",
     icon: FileText,
     tone: "warning",
-    title: "Invoices",
-    description: "Cross-tenant ledger. Issue, mark paid, void.",
+    titleKey: "pivot.invoices.title",
+    descriptionKey: "pivot.invoices.description",
     module: "billing",
   },
 ];
@@ -70,6 +73,7 @@ const PIVOTS: Pivot[] = [
  * the rest of the app. No fake "Coming soon" filler.
  */
 export function DashboardPage() {
+  const { t } = useTranslation("dashboard");
   const { user } = useAuth();
 
   // A deployment that hides a module shouldn't pay for its data either: the
@@ -119,13 +123,13 @@ export function DashboardPage() {
           icon={LayoutDashboard}
           title={
             <>
-              Overview{firstName ? (
-                <span className="text-[var(--color-muted-foreground)]">, {firstName}</span>
+              {t("title")}{firstName ? (
+                <span className="text-[var(--color-muted-foreground)]">{t("greeting", { name: firstName })}</span>
               ) : null}
             </>
           }
           tone="primary"
-          description="Operate every tenant on this instance — identity, multitenancy, billing, and the rest of the system surface."
+          description={t("description")}
         />
       </div>
 
@@ -133,55 +137,55 @@ export function DashboardPage() {
       <StatStrip cols={statCols} className="fsh-enter fsh-enter-2">
         {tenantsEnabled ? (
           <Stat
-            label="Tenants"
+            label={t("stat.tenants")}
             value={
               tenantsQuery.isLoading ? (
                 <Skeleton className="h-7 w-16" />
               ) : (
-                tenantsTotal?.toLocaleString() ?? "—"
+                tenantsTotal != null ? formatNumber(tenantsTotal) : "—"
               )
             }
-            hint="registered on this instance"
+            hint={t("stat.tenantsHint")}
           />
         ) : null}
         {billingEnabled ? (
           <>
             <Stat
-              label="Plans"
+              label={t("stat.plans")}
               value={
                 plansQuery.isLoading ? (
                   <Skeleton className="h-7 w-16" />
                 ) : (
-                  plans.length.toLocaleString()
+                  formatNumber(plans.length)
                 )
               }
-              hint={`${activePlans} active`}
+              hint={t("stat.plansActive", { count: activePlans })}
             />
             <Stat
-              label="Invoices"
+              label={t("stat.invoices")}
               value={
                 invoicesQuery.isLoading ? (
                   <Skeleton className="h-7 w-16" />
                 ) : (
-                  invoicesPage?.items.length.toLocaleString() ?? "—"
+                  invoicesPage != null ? formatNumber(invoicesPage.items.length) : "—"
                 )
               }
               hint={
                 invoicesPage
-                  ? `${invoicesPage.totalCount.toLocaleString()} total ledger`
-                  : "loading…"
+                  ? t("stat.invoicesHint", { count: invoicesPage.totalCount })
+                  : t("stat.invoicesLoading")
               }
             />
             <Stat
-              label="Outstanding"
+              label={t("stat.outstanding")}
               value={
                 invoicesQuery.isLoading ? (
                   <Skeleton className="h-7 w-16" />
                 ) : (
-                  outstandingCount.toLocaleString()
+                  formatNumber(outstandingCount)
                 )
               }
-              hint="issued, awaiting payment"
+              hint={t("stat.outstandingHint")}
               tone={outstandingCount > 0 ? "warning" : "default"}
             />
           </>
@@ -191,11 +195,11 @@ export function DashboardPage() {
       {/* ── Quick pivots ─────────────────────────────────────────────── */}
       <section className="fsh-enter fsh-enter-3 space-y-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-muted-foreground)]">
-          Entry points
+          {t("entryPoints")}
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {visiblePivots.map((pivot) => (
-            <PivotCard key={pivot.to} {...pivot} />
+          {visiblePivots.map(({ titleKey, descriptionKey, ...pivot }) => (
+            <PivotCard key={pivot.to} {...pivot} title={t(titleKey)} description={t(descriptionKey)} />
           ))}
         </div>
       </section>
