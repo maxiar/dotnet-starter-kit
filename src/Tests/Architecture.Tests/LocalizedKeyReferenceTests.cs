@@ -32,7 +32,9 @@ public sealed partial class LocalizedKeyReferenceTests
         "src/Modules/Identity/Modules.Identity/Features/v1/Roles/RoleService.cs: messageKey",
     ];
 
-    [Fact]
+    // Scans and counts call sites across the kernel source too, so it needs src/BuildingBlocks; a project
+    // on framework packages skips it (the kit runs it on every change to the kernel).
+    [KernelSourceOnlyFact]
     public void Every_Literal_Resource_Key_Exists_In_Its_Catalog_With_Enough_Arguments()
     {
         var scan = new Scan(LoadNeutralCatalogs());
@@ -185,8 +187,11 @@ public sealed partial class LocalizedKeyReferenceTests
     private static IEnumerable<(string Path, string Source)> SourceFiles()
     {
         var root = ModuleArchitectureTestsFixture.SolutionRoot;
+        // A project on framework packages has no src/BuildingBlocks; that code is checked in the kit.
         return new[] { "BuildingBlocks", "Modules" }
-            .SelectMany(folder => Directory.EnumerateFiles(Path.Combine(root, "src", folder), "*.cs", SearchOption.AllDirectories))
+            .Select(folder => Path.Combine(root, "src", folder))
+            .Where(Directory.Exists)
+            .SelectMany(directory => Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories))
             .Select(file => Path.GetRelativePath(root, file).Replace('\\', '/'))
             .Where(relative => !relative.Contains("/bin/", StringComparison.Ordinal) && !relative.Contains("/obj/", StringComparison.Ordinal))
             .Select(relative => (relative, File.ReadAllText(Path.Combine(root, relative))));
