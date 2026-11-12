@@ -528,7 +528,15 @@ Recurring conflict points, whatever the project:
 - **Front-end i18n.** Since 2026-11 the template uses typed keys (`labelKey`, `ParseKeys<"ns">`),
   and the `i18next/no-literal-string` lint rule rejects hard-coded text. The project's own screens
   keep their strings in their **own** namespace files, under `src/locales/<lang>/<ns>.json`, so
-  upgrades do not touch them.
+  upgrades do not touch them:
+  - FS.Proxy: the admin uses `proxies`.
+  - FS.Search: the dashboard uses `search`, plus a project-only `es` locale (`src/locales/es*`)
+    with `defaultLanguage: "es"`. `es` is not in the language switcher, because the kernel accepts
+    only en-US and pt-BR as a profile language.
+
+  Small edits to template files are unavoidable and will reappear as conflicts: `i18n.ts`, the
+  namespace list in `routes.tsx`, `nav-*`, `permissions.ts`/`roles.json`, and
+  `tests/i18n/parity.spec.ts`.
 - **Locale wordmark.** After an upgrade, re-run the wordmark `sed` from
   [Rebranding the admin wordmark](#rebranding-the-admin-wordmark), since upstream ships new
   `fullstackhero` strings in the locales.
