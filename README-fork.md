@@ -182,7 +182,7 @@ report upstream **before** or at the same time as that merge.
 
 | Date | Report | Patch branch | Status |
 |---|---|---|---|
-| 2026-11-12 | GHSA-qpqm-m27g-r34g: file deletion / path traversal through profile image and brand asset URLs, `LocalStorageService`, client Content-Type | `fix/storage-upload-hardening-upstream` | triage |
+| 2026-11-12 | GHSA-qpqm-m27g-r34g: file deletion / path traversal through profile image and brand asset URLs, `LocalStorageService`, client Content-Type | `fix/storage-upload-hardening-upstream` | triage; public PR #1471 opened without waiting (fix already public in the fork) |
 | 2026-11-12 | public PR #1470: .NET 10.0.15 / Aspire 13.6.5 (CVE-2026-114147, CVE-2026-120006) | `fix/cve-2026-114147-120006-upstream` | open |
 
 ## Pitfalls
