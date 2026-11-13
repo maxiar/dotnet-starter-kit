@@ -511,8 +511,9 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
     /// set together because they must stay consistent — a provider without its matching
     /// MigrationsAssembly fails at startup — and through <see cref="JsonSettingsEditor"/>, because
     /// the settings files carry <c>//</c> comments that a JSON round trip would reject or drop.
+    /// <c>fsh upgrade</c> replays it on the regenerated scaffold, so a SQL Server project stays one.
     /// </remarks>
-    private static void ApplyDbProvider(string name, string output, DbProviderChoice dbProvider)
+    internal static void ApplyDbProvider(string name, string output, DbProviderChoice dbProvider)
     {
         if (dbProvider != DbProviderChoice.Mssql) return;
 

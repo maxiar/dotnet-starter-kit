@@ -607,6 +607,7 @@ Recurring conflict points, whatever the project:
 | `fsh` runs but lacks the new options | the globally installed tool is the published build, not your fork | `dotnet run --project src/Tools/CLI -- self install` |
 | `fsh: command not found` right after installing | `~/.dotnet/tools` is not on `PATH` | add it to your shell profile; `fsh self install` prints the exact line |
 | `fsh new --db-provider mssql` fails with `'/' is invalid after a value` | CLI older than this fix: it parsed `appsettings.json` with a strict JSON parser, and the file has `//` comments | `fsh self install`; on an old CLI, omit the flag and set `DatabaseOptions:Provider` / `MigrationsAssembly` by hand |
+| `fsh upgrade` moves `DatabaseOptions:Provider` back to `POSTGRESQL` on a `--db-provider mssql` project | CLI older than this fix did not replay the provider on the regenerated scaffold | `fsh self install`, re-run the upgrade; on a merged upgrade, restore the three provider values by hand |
 | Scaffold has `Microsoft.Build.Locator.dll`, `System.*.dll`, `artifacts/` or `.DS_Store` at its root | CLI older than this fix installed the `--template-path` checkout as-is, git-ignored files included | `fsh self install`, or scaffold from `git archive HEAD` extracted to a temp folder |
 | Project was created inside the starter-kit clone | `fsh new` defaults to the current directory | pass `-o /path/to/project` |
 | `Not inside a FullStackHero starter-kit repository` | `fsh framework` ran outside a clone | `cd` into a directory that has both `src/BuildingBlocks` and `.template.config` |
@@ -764,6 +765,11 @@ differently-shaped project. The options are read back from the shape of the base
 `src/Host/<Name>.AppHost/` means aspire, `clients/` means frontend, `.agents/` means the agents kit,
 and a missing `src/BuildingBlocks/` means framework packages (pinned to the version the project
 currently uses).
+
+The database provider is read from the baseline's `DatabaseOptions:Provider`. If it is `MSSQL`, the
+`--db-provider mssql` edits are replayed on the regenerated scaffold, so a SQL Server project is not
+merged back to PostgreSQL. It is the baseline that counts, not the current tree. A project scaffolded on
+PostgreSQL and switched by hand later already carries that switch as its own edit, and the merge keeps it.
 
 Two files get special handling, because `fsh new` writes them *after* the template runs and they
 are committed in the baseline: `NuGet.config` and the per-project dev signing key in
