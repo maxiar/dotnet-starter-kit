@@ -370,6 +370,19 @@ stale one, and uninstalls the previous copy first — two template packages shar
 `FullStackHero.NET.StarterKit` make `dotnet new` fail with
 `Sequence contains more than one matching element`.
 
+A **checkout is not installed as-is.** The CLI first copies the files git tracks, plus untracked
+files git does not ignore, to `~/.fsh/template-snapshot`, and installs that copy. The template engine
+reads everything in the folder it is given, so a raw checkout leaked git-ignored files into the
+scaffold. Uncommitted edits still travel, because the copy is taken from the working tree. That is
+what a contributor wants:
+
+- `artifacts/` nupkgs and `.DS_Store` files.
+- `bin\Debug/` folders, which macOS/Linux create with a literal backslash in the name. Their BuildHost
+  DLLs landed at the project root.
+
+The snapshot is rebuilt on every `--template-path` install and stays registered for later
+`dotnet new fsh` runs. If the folder is not a git work tree, it is installed directly as before.
+
 ---
 
 ## Shipping the `.agents` kit
@@ -591,6 +604,8 @@ Recurring conflict points, whatever the project:
 | `Working tree has uncommitted changes` | upgrade lands as a merge and needs a clean start | commit or stash first |
 | `fsh` runs but lacks the new options | the globally installed tool is the published build, not your fork | `dotnet run --project src/Tools/CLI -- self install` |
 | `fsh: command not found` right after installing | `~/.dotnet/tools` is not on `PATH` | add it to your shell profile; `fsh self install` prints the exact line |
+| `fsh new --db-provider mssql` fails with `'/' is invalid after a value` | CLI older than this fix: it parsed `appsettings.json` with a strict JSON parser, and the file has `//` comments | `fsh self install`; on an old CLI, omit the flag and set `DatabaseOptions:Provider` / `MigrationsAssembly` by hand |
+| Scaffold has `Microsoft.Build.Locator.dll`, `System.*.dll`, `artifacts/` or `.DS_Store` at its root | CLI older than this fix installed the `--template-path` checkout as-is, git-ignored files included | `fsh self install`, or scaffold from `git archive HEAD` extracted to a temp folder |
 | Project was created inside the starter-kit clone | `fsh new` defaults to the current directory | pass `-o /path/to/project` |
 | `Not inside a FullStackHero starter-kit repository` | `fsh framework` ran outside a clone | `cd` into a directory that has both `src/BuildingBlocks` and `.template.config` |
 | `NU5026: the file ... .pdb is not found` when packing by hand | `--no-build` with an embedded PDB — there is no `.pdb` on disk to pack | drop `--no-build` (`fsh framework pack` already does) |
@@ -690,6 +705,12 @@ Every option resolves **flag → environment variable → default**.
 (`<Name>.Migrations.PostgreSQL` and `<Name>.Migrations.MSSQL`), so switching a project later is a
 config change — set `DatabaseOptions:Provider` and the matching `DatabaseOptions:MigrationsAssembly`
 — with no rescaffold and no file surgery.
+
+`--db-provider mssql` sets `Provider`, `MigrationsAssembly` and a local dev `ConnectionString` in the
+API's `appsettings.json`, `Provider` and `MigrationsAssembly` in `appsettings.Production.json`, and
+`DbProvider` in the AppHost. Only those values are replaced. The files' `//` comments and layout are
+kept: the settings are JSON with comments, which a parse-and-serialize round trip either rejects or
+strips.
 
 `--agents` and `--framework-packages` accept a bare flag or an explicit value, so both
 `--agents` and `--agents true` work (and `--agents false` turns it off). Unknown options are a
