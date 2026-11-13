@@ -370,6 +370,19 @@ stale one, and uninstalls the previous copy first — two template packages shar
 `FullStackHero.NET.StarterKit` make `dotnet new` fail with
 `Sequence contains more than one matching element`.
 
+A **checkout is not installed as-is.** The CLI first copies the files git tracks, plus untracked
+files git does not ignore, to `~/.fsh/template-snapshot`, and installs that copy. The template engine
+reads everything in the folder it is given, so a raw checkout leaked git-ignored files into the
+scaffold. Uncommitted edits still travel, because the copy is taken from the working tree. That is
+what a contributor wants:
+
+- `artifacts/` nupkgs and `.DS_Store` files.
+- `bin\Debug/` folders, which macOS/Linux create with a literal backslash in the name. Their BuildHost
+  DLLs landed at the project root.
+
+The snapshot is rebuilt on every `--template-path` install and stays registered for later
+`dotnet new fsh` runs. If the folder is not a git work tree, it is installed directly as before.
+
 ---
 
 ## Shipping the `.agents` kit
@@ -503,6 +516,7 @@ through the per-OS block in `src/Directory.Build.props`
 | FS.Security | `fs-security` · `eduardojimenez-fst/fs-security` | `dc4b208` (2026-10-15) | MSSQL | `FS.Security` · — · `FS.Security:prod` | `20261026T160747` | Keycloak; own admin, no dashboard; no QA settings file; feature work lives on long-running `design/*` branches, so land kernel bumps on `main` |
 | FS.AI.SmartSearch | `fs-ai-smartsearch` · `falconsoft-org/fs-ai-smartsearch` | `36d2f4c` (2026-10-19) | PostgreSQL | `FS.AI.SmartSearch` · `…:qa` · `…:prod` | `20261026T160747` | API only, no clients; Data Protection keys in Redis, so changing its prefix logs users out once |
 | FS.Search | `fs-search` · `falconsoft-org/fs-search` | `c766589` (2026-10-21) | MSSQL | `FS.Search` · `FS.Search:qa` · `FS.Search:prod` | `20261026T160747` | admin + dashboard; wordmark `fssearch`; hides billing, webhooks, health, auditing; `ProductionConfigTests` guards the committed QA/Production settings |
+| FS.Pharma | `fs-pharma-platform` · `falconsoft-org/fs-pharma-platform` | `71460f6` (2026-11-13) | MSSQL, **shared** `FS.Pharma` DB | `FS.Pharma` · `FS.Pharma:qa` · `FS.Pharma:prod` | `20261112T213930` | admin + dashboard; wordmark `fspharma`; hides billing, webhooks, health, auditing, multitenancy; shares its database with the Python pipeline `fs-pharma`, which owns schema `pharma` (`.agents/rules/shared-database.md`) |
 
 **Not on this template:** the `fs-framework` monorepo (`eduardojimenez-fst/fs-framework`, branch
 `falconsoft`) hosts FS.Workflow, FS.AI and FS.FileStorage. It is built on an **earlier FSH
@@ -535,6 +549,7 @@ still compiled, registered and migrated, only kept out of the UI by `disabledMod
 | FS.Security | **only** Auditing, Identity, Multitenancy + **IdentityAdmin**. Billing, Catalog, Chat, Files, Notifications, Tickets, Webhooks **removed** | admin only (**dashboard removed**), rewritten: Keycloak sign-in, own permission map and nav, Spanish shell | Identity rewritten on **Keycloak** (template user/role/group/session/2FA/impersonation store and token issuance removed). **SQL Server only** (no `Migrations.PostgreSQL`). No AWS/dokploy/terraform deploy. Adds `src/Packages/FS.Security.Client` + `clients/packages/fs-security-client`, `Keycloak.Tests`, `FS.Security.TestSupport`, `FS.Security.ProvisioningFake` | **Do not run `fsh upgrade`** (2026-11-12: 411 conflicts). Bump `FshFrameworkVersion` and the package pins, and port relevant template fixes by hand |
 | FS.AI.SmartSearch | template modules still in source, but `Program.cs` loads **only** Identity, Multitenancy, Auditing + **AI.SmartSearch** | **none** (API only, no `clients/`, no AppHost) | Integration tests for the unloaded modules (Billing, Catalog, …) **removed** | `fsh upgrade --merge`. Keep the 4-module `moduleAssemblies` and keep the deleted tests deleted. `clients/` and the AppHost must not come back |
 | FS.Search | all template modules + **Search** | admin + dashboard. admin hides billing, webhooks, health, auditing. The dashboard additionally hides multitenancy, activity, catalog, chat, files, sessions, tickets | `src/Tools/TenderHistoryEval` + `TenderHistoryEval.Tests`. Committed QA/Production settings guarded by `ProductionConfigTests`. Wordmark `fssearch` | `fsh upgrade --merge`. Conflicts cluster in dashboard `nav-data`, Search pages and locales |
+| FS.Pharma | template modules only, so far | admin + dashboard; both hide billing, webhooks, health, auditing, multitenancy | Shares the `FS.Pharma` database with `fs-pharma` (Python, Alembic). Schema `pharma` is reserved for it (golden rule 10 + `.agents/rules/shared-database.md`). No module named `Pharma` (it would default to that schema). Wordmark `fspharma` | `fsh upgrade --merge`. Expect a conflict in `AGENTS.md` (the extra golden rule and rules-index row). Run `alembic upgrade head` in fs-pharma before the DbMigrator |
 
 Recurring conflict points, whatever the project:
 
@@ -591,6 +606,9 @@ Recurring conflict points, whatever the project:
 | `Working tree has uncommitted changes` | upgrade lands as a merge and needs a clean start | commit or stash first |
 | `fsh` runs but lacks the new options | the globally installed tool is the published build, not your fork | `dotnet run --project src/Tools/CLI -- self install` |
 | `fsh: command not found` right after installing | `~/.dotnet/tools` is not on `PATH` | add it to your shell profile; `fsh self install` prints the exact line |
+| `fsh new --db-provider mssql` fails with `'/' is invalid after a value` | CLI older than this fix: it parsed `appsettings.json` with a strict JSON parser, and the file has `//` comments | `fsh self install`; on an old CLI, omit the flag and set `DatabaseOptions:Provider` / `MigrationsAssembly` by hand |
+| `fsh upgrade` moves `DatabaseOptions:Provider` back to `POSTGRESQL` on a `--db-provider mssql` project | CLI older than this fix did not replay the provider on the regenerated scaffold | `fsh self install`, re-run the upgrade; on a merged upgrade, restore the three provider values by hand |
+| Scaffold has `Microsoft.Build.Locator.dll`, `System.*.dll`, `artifacts/` or `.DS_Store` at its root | CLI older than this fix installed the `--template-path` checkout as-is, git-ignored files included | `fsh self install`, or scaffold from `git archive HEAD` extracted to a temp folder |
 | Project was created inside the starter-kit clone | `fsh new` defaults to the current directory | pass `-o /path/to/project` |
 | `Not inside a FullStackHero starter-kit repository` | `fsh framework` ran outside a clone | `cd` into a directory that has both `src/BuildingBlocks` and `.template.config` |
 | `NU5026: the file ... .pdb is not found` when packing by hand | `--no-build` with an embedded PDB — there is no `.pdb` on disk to pack | drop `--no-build` (`fsh framework pack` already does) |
@@ -691,6 +709,12 @@ Every option resolves **flag → environment variable → default**.
 config change — set `DatabaseOptions:Provider` and the matching `DatabaseOptions:MigrationsAssembly`
 — with no rescaffold and no file surgery.
 
+`--db-provider mssql` sets `Provider`, `MigrationsAssembly` and a local dev `ConnectionString` in the
+API's `appsettings.json`, `Provider` and `MigrationsAssembly` in `appsettings.Production.json`, and
+`DbProvider` in the AppHost. Only those values are replaced. The files' `//` comments and layout are
+kept: the settings are JSON with comments, which a parse-and-serialize round trip either rejects or
+strips.
+
 `--agents` and `--framework-packages` accept a bare flag or an explicit value, so both
 `--agents` and `--agents true` work (and `--agents false` turns it off). Unknown options are a
 hard error: these are the `fsh` option names, **not** the `dotnet new` symbol names — see the
@@ -741,6 +765,11 @@ differently-shaped project. The options are read back from the shape of the base
 `src/Host/<Name>.AppHost/` means aspire, `clients/` means frontend, `.agents/` means the agents kit,
 and a missing `src/BuildingBlocks/` means framework packages (pinned to the version the project
 currently uses).
+
+The database provider is read from the baseline's `DatabaseOptions:Provider`. If it is `MSSQL`, the
+`--db-provider mssql` edits are replayed on the regenerated scaffold, so a SQL Server project is not
+merged back to PostgreSQL. It is the baseline that counts, not the current tree. A project scaffolded on
+PostgreSQL and switched by hand later already carries that switch as its own edit, and the merge keeps it.
 
 Two files get special handling, because `fsh new` writes them *after* the template runs and they
 are committed in the baseline: `NuGet.config` and the per-project dev signing key in

@@ -129,6 +129,11 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
             if (!await GenerateScaffoldAsync(project, options, staging, cancellationToken).ConfigureAwait(false))
                 return 1;
 
+            // `fsh new` rewrites the provider after the template runs, exactly like NuGet.config;
+            // without replaying it, the merge would quietly move a SQL Server project back to Postgres.
+            if (options.SqlServer)
+                NewCommand.ApplyDbProvider(project.Name, staging, NewCommand.DbProviderChoice.Mssql);
+
             await ReconcileGeneratedFilesAsync(project, baseline, staging, cancellationToken).ConfigureAwait(false);
 
             return await CommitAndReportAsync(
@@ -148,7 +153,8 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
     /// The options a scaffold was created with, recovered from the shape of the baseline tree
     /// rather than remembered state, so an upgrade cannot regenerate a differently-shaped project.
     /// </summary>
-    private sealed record ScaffoldOptions(bool Aspire, bool Frontend, bool Agents, bool FrameworkPackages, string? FrameworkVersion)
+    private sealed record ScaffoldOptions(
+        bool Aspire, bool Frontend, bool Agents, bool FrameworkPackages, string? FrameworkVersion, bool SqlServer)
     {
         internal string Describe()
         {
@@ -157,7 +163,8 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
                 Aspire ? "aspire" : "no aspire",
                 Frontend ? "frontend" : "no frontend",
                 Agents ? "agents" : "no agents",
-                FrameworkPackages ? $"framework packages {FrameworkVersion}" : "owned source"
+                FrameworkPackages ? $"framework packages {FrameworkVersion}" : "owned source",
+                SqlServer ? "SQL Server" : "PostgreSQL"
             ];
 
             return string.Join(", ", parts).EscapeMarkup();
@@ -171,12 +178,21 @@ public sealed class UpgradeCommand : AsyncCommand<UpgradeCommand.Settings>
 
         bool Has(string prefix) => tree.Any(path => path.StartsWith(prefix, StringComparison.Ordinal));
 
+        // `fsh new --db-provider mssql` leaves no trace in the tree's shape, only in the API's settings.
+        // Read from the baseline, not the working tree: a project switched to SQL Server by hand after
+        // scaffolding already carries that edit, and replaying it would turn it into a template change.
+        string? apiSettings = await GitRunner
+            .ShowFileAsync(project.Root, baseline, $"src/Host/{project.Name}.Api/appsettings.json", cancellationToken)
+            .ConfigureAwait(false);
+        string? provider = apiSettings is null ? null : JsonSettingsEditor.GetString(apiSettings, "DatabaseOptions:Provider");
+
         return new ScaffoldOptions(
             Aspire: Has($"src/Host/{project.Name}.AppHost/"),
             Frontend: Has("clients/"),
             Agents: Has(".agents/"),
             FrameworkPackages: !Has("src/BuildingBlocks/"),
-            FrameworkVersion: project.GetFrameworkVersion());
+            FrameworkVersion: project.GetFrameworkVersion(),
+            SqlServer: string.Equals(provider, "MSSQL", StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task<bool> GenerateScaffoldAsync(

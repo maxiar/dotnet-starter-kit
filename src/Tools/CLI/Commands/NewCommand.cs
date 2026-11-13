@@ -1,8 +1,6 @@
 using System.ComponentModel;
 using System.Reflection;
 using System.Security.Cryptography;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using FSH.CLI.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -497,43 +495,60 @@ public sealed class NewCommand : AsyncCommand<NewCommand.Settings>
         File.WriteAllText(appsettingsDev, content.Replace(placeholder, key, StringComparison.Ordinal));
     }
 
+    // Dev-only default: the sa password the Aspire AppHost gives its SQL Server container
+    // ("mssql-password" in AppHost.cs), the MSSQL counterpart of the template's Postgres "password".
+#pragma warning disable S2068
+    private const string MssqlDevConnectionString =
+        "Server=localhost,1433;Database=fsh;User Id=sa;Password=Str0ng_Dev_Pwd!;TrustServerCertificate=True;Min Pool Size=5";
+#pragma warning restore S2068
+
     /// <summary>
     /// Writes the chosen provider into the scaffolded project's configuration.
     /// </summary>
     /// <remarks>
     /// Both migrations projects ship regardless, so this only sets the default: switching a
-    /// scaffolded project later is editing these same values, with no file surgery. Edited as JSON
-    /// rather than by string replacement because the three values must stay consistent with each
-    /// other — a provider without its matching MigrationsAssembly fails at startup.
+    /// scaffolded project later is editing these same values, with no file surgery. The values are
+    /// set together because they must stay consistent — a provider without its matching
+    /// MigrationsAssembly fails at startup — and through <see cref="JsonSettingsEditor"/>, because
+    /// the settings files carry <c>//</c> comments that a JSON round trip would reject or drop.
+    /// <c>fsh upgrade</c> replays it on the regenerated scaffold, so a SQL Server project stays one.
     /// </remarks>
-    private static void ApplyDbProvider(string name, string output, DbProviderChoice dbProvider)
+    internal static void ApplyDbProvider(string name, string output, DbProviderChoice dbProvider)
     {
         if (dbProvider != DbProviderChoice.Mssql) return;
 
-        string appsettings = Path.Combine(output, "src", "Host", $"{name}.Api", "appsettings.json");
-        if (File.Exists(appsettings))
+        string apiHost = Path.Combine(output, "src", "Host", $"{name}.Api");
+        string migrationsAssembly = $"{name}.Migrations.MSSQL";
+
+        SetOrWarn(Path.Combine(apiHost, "appsettings.json"), new Dictionary<string, string>
         {
-            var root = JsonNode.Parse(File.ReadAllText(appsettings))?.AsObject();
-            if (root?["DatabaseOptions"] is JsonObject db)
-            {
-                db["Provider"] = "MSSQL";
-                db["MigrationsAssembly"] = $"{name}.Migrations.MSSQL";
-                db["ConnectionString"] =
-                    "Server=localhost,1433;Database=fsh;User Id=sa;Password=Str0ng_Dev_Pwd!;TrustServerCertificate=True;Min Pool Size=5";
-                File.WriteAllText(appsettings, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-            }
-        }
+            ["DatabaseOptions:Provider"] = "MSSQL",
+            ["DatabaseOptions:MigrationsAssembly"] = migrationsAssembly,
+            ["DatabaseOptions:ConnectionString"] = MssqlDevConnectionString,
+        });
+
+        // Production keeps its (empty) connection string, but must not stay on the other provider.
+        SetOrWarn(Path.Combine(apiHost, "appsettings.Production.json"), new Dictionary<string, string>
+        {
+            ["DatabaseOptions:Provider"] = "MSSQL",
+            ["DatabaseOptions:MigrationsAssembly"] = migrationsAssembly,
+        });
 
         // The Aspire host reads DbProvider to decide which container to run.
-        string appHostSettings = Path.Combine(output, "src", "Host", $"{name}.AppHost", "appsettings.json");
-        if (File.Exists(appHostSettings))
+        SetOrWarn(Path.Combine(output, "src", "Host", $"{name}.AppHost", "appsettings.json"), new Dictionary<string, string>
         {
-            var root = JsonNode.Parse(File.ReadAllText(appHostSettings))?.AsObject();
-            if (root is not null)
-            {
-                root["DbProvider"] = "mssql";
-                File.WriteAllText(appHostSettings, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-            }
+            ["DbProvider"] = "mssql",
+        });
+
+        static void SetOrWarn(string path, IReadOnlyDictionary<string, string> values)
+        {
+            // A file the chosen options did not generate (no AppHost without Aspire) is not an error.
+            if (!File.Exists(path) || JsonSettingsEditor.TrySetStrings(path, values)) return;
+
+            AnsiConsole.MarkupLine(
+                $"[{FshConstants.WarningColor}]Could not set the SQL Server provider in {path.EscapeMarkup()}; set these by hand:[/]");
+            foreach ((string key, string value) in values)
+                AnsiConsole.MarkupLine($"  [{FshConstants.DimColor}]{key.EscapeMarkup()} = {value.EscapeMarkup()}[/]");
         }
     }
 

@@ -45,10 +45,22 @@ internal static class TemplateInstaller
         }
 
         string target = FshConstants.TemplatePackageId;
+        string? checkout = null;
         if (path is not null)
-            target = $"\"{ResolveTemplatePath(path)}\"";
+        {
+            string resolved = ResolveTemplatePath(path);
+            if (IsCheckout(resolved))
+            {
+                checkout = resolved;
+                resolved = await SnapshotCheckoutAsync(resolved, cancellationToken).ConfigureAwait(false);
+            }
+
+            target = $"\"{resolved}\"";
+        }
         else if (version is not null)
+        {
             target = $"{FshConstants.TemplatePackageId}::{version}";
+        }
 
         string arguments = $"new install {target} --force"
             + (source is not null ? $" --add-source \"{source}\"" : string.Empty);
@@ -63,7 +75,13 @@ internal static class TemplateInstaller
             // and installing from a new source without removing the old one is precisely how
             // that state arises. Both forms are removed: the NuGet id, and the path we are
             // about to install (re-installing the same folder otherwise duplicates it).
-            foreach (string uninstallTarget in (string[])[FshConstants.TemplatePackageId, target])
+            // A checkout installed directly by an older CLI is removed too: it would otherwise sit
+            // next to its own snapshot under the same identity.
+            string[] uninstallTargets = checkout is null
+                ? [FshConstants.TemplatePackageId, target]
+                : [FshConstants.TemplatePackageId, target, $"\"{checkout}\""];
+
+            foreach (string uninstallTarget in uninstallTargets)
             {
                 await ProcessRunner.CaptureAsync(
                     "dotnet", $"new uninstall {uninstallTarget}", cancellationToken).ConfigureAwait(false);
@@ -115,6 +133,57 @@ internal static class TemplateInstaller
         }
 
         return full;
+    }
+
+    private static bool IsCheckout(string path) =>
+        Directory.Exists(Path.Combine(path, ".template.config"));
+
+    /// <summary>
+    /// Copies a starter-kit checkout's files - tracked, plus untracked ones git does not ignore - to
+    /// a stable folder, and returns it; the checkout itself when it is not a git work tree.
+    /// </summary>
+    /// <remarks>
+    /// The template engine reads the folder it is given, ignored files included: build output
+    /// (<c>bin\Debug/</c> folders that macOS and Linux create with a literal backslash in the name,
+    /// whose BuildHost DLLs land at the project root), <c>artifacts/</c> nupkgs, <c>.DS_Store</c>, local
+    /// <c>.env</c> files. The template's own exclude list cannot keep up with every machine's junk;
+    /// <c>.gitignore</c> already does. Copying from the working tree rather than <c>git archive</c>
+    /// keeps uncommitted edits, which is what a contributor scaffolding from a checkout expects.
+    ///
+    /// The snapshot lives under <c>~/.fsh</c>, not a temp folder: <c>dotnet new install</c> registers
+    /// the folder, and every later <c>dotnet new fsh</c> reads from it.
+    /// </remarks>
+    private static async Task<string> SnapshotCheckoutAsync(string checkout, CancellationToken cancellationToken)
+    {
+        (bool ok, string listing) = await GitRunner
+            .RunAsync(checkout, "ls-files -z --cached --others --exclude-standard", cancellationToken, trimOutput: false)
+            .ConfigureAwait(false);
+
+        if (!ok || listing.Length == 0) return checkout;
+
+        string snapshot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".fsh", "template-snapshot");
+
+        if (Directory.Exists(snapshot)) Directory.Delete(snapshot, recursive: true);
+
+        int copied = 0;
+        foreach (string relative in listing.Split('\0', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string source = Path.Combine(checkout, relative);
+
+            // Tracked but deleted in the working tree, or a submodule entry.
+            if (!File.Exists(source)) continue;
+
+            string destination = Path.Combine(snapshot, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(source, destination);
+            copied++;
+        }
+
+        AnsiConsole.MarkupLine(
+            $"[{FshConstants.DimColor}]Template snapshot: {copied} files from {checkout.EscapeMarkup()} (git-ignored files left out)[/]");
+
+        return snapshot;
     }
 
     /// <summary>Setting, else environment variable, else <see langword="null"/>.</summary>
